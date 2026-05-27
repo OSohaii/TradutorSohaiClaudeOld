@@ -8,6 +8,7 @@ import { estimateCost } from './features/translator/costEstimation';
 import Toggle from './components/ui/Toggle';
 import ToastContainer from './components/ui/Toast';
 import BatchProgressBar from './components/ui/BatchProgressBar';
+import VersionBadge from './components/ui/VersionBadge';
 import IchigoSettingsModal from './features/settings/IchigoSettingsModal';
 import ToriiSettingsModal from './features/settings/ToriiSettingsModal';
 import DeepLSettingsModal from './features/settings/DeepLSettingsModal';
@@ -347,6 +348,7 @@ const App: React.FC = () => {
                <h1 className="font-bold text-lg leading-none tracking-tight">MangaLens</h1>
                <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[10px] text-slate-400 font-medium">AI Translator</span>
+                  <VersionBadge />
                   {/* Token Usage Badge */}
                   <div className={`flex items-center gap-1 border rounded-md px-1.5 py-0.5 ${displayedTotalTokens > 0 ? 'bg-emerald-900/40 border-emerald-500/30' : 'bg-slate-800/40 border-slate-700/50'}`}>
                       <span className={`text-[9px] font-mono font-bold ${displayedTotalTokens > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
@@ -728,8 +730,9 @@ const App: React.FC = () => {
              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-300">
                <Bars3Icon className="w-6 h-6" />
              </button>
-             <span className="font-semibold text-slate-200 truncate max-w-[150px]">
+             <span className="font-semibold text-slate-200 truncate max-w-[150px] flex items-center gap-1.5">
                 {currentImage ? currentImage.fileName : 'MangaLens'}
+                {!currentImage && <VersionBadge variant="subtle" />}
              </span>
              {currentImage && (
                 <button 

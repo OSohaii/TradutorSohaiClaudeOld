@@ -1,9 +1,23 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readFileSync } from 'fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Read the package.json version at build time so the UI can display the
+// running app version without us having to keep a hand-edited constant in
+// sync with package.json. The value is injected as a global at build time
+// via `define` and consumed in App.tsx through the typed declaration in
+// `vite-env.d.ts` (declare const __APP_VERSION__: string).
+//
+// Convention: package.json `version` is bumped to match the next git tag
+// (e.g. 0.1.7-alpha for the v0.1.7-alpha tag) BEFORE merging the PR that
+// introduces the version. After merge we create the matching tag.
+const pkg = JSON.parse(
+  readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'),
+) as { version: string };
 
 // SECURITY NOTE
 // -------------
@@ -36,6 +50,12 @@ export default defineConfig(({ mode }) => {
         },
       },
       plugins: [react()],
+      define: {
+        // Expose package.json `version` to client code as `__APP_VERSION__`.
+        // JSON.stringify is required because `define` does a raw text
+        // substitution; without it the value would be parsed as code.
+        __APP_VERSION__: JSON.stringify(pkg.version),
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

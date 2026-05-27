@@ -4,7 +4,10 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'node_modules/'] },
+  // Ignore build output, node_modules, and Python virtualenvs that may be
+  // present locally (the backend Python tests live under backend/.venv).
+  // Also skip the dist folder and any IDE caches.
+  { ignores: ['dist/', 'node_modules/', 'backend/.venv/', 'backend/venv/', 'backend/env/', '**/__pycache__/'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
