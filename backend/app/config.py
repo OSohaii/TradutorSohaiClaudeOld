@@ -32,6 +32,24 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     max_image_bytes: int = 15 * 1024 * 1024  # 15 MB decoded
 
+    # Server-side caching (Fase 4 - performance).
+    #
+    # Two independent caches reduce paid provider calls when iterating on the
+    # same content:
+    #   * OCR cache: in-memory LRU keyed by (image_sha256, ocr_engine,
+    #     source_language [, target_language if the engine also translates]).
+    #     Empty after server restart, which is intentional - it covers a
+    #     single editing session, not long-term storage.
+    #   * Translation cache: SQLite-backed (single-file DB). Persists across
+    #     restarts so repeated source phrases (onomatopoeias, short replies,
+    #     etc.) translate exactly once forever.
+    #
+    # Set cache_enabled=False to bypass both caches (used by the test suite
+    # to keep behaviour deterministic without coordinated teardown).
+    cache_enabled: bool = True
+    cache_ocr_max_entries: int = 100
+    cache_db_path: str = "cache.db"
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
