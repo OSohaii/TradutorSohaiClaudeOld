@@ -12,7 +12,6 @@ const MAX_THUMBNAIL_SIZE = 150;
 // remote support can ask users to copy them from the console.
 const debugLog = (...args: unknown[]): void => {
   if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
     console.log(...args);
   }
 };
