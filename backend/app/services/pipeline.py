@@ -8,6 +8,15 @@ behavioural fixes are applied vs the original:
 * B2 (diagnostic): the "is this a single-pass full pipeline" calculation lives
   in exactly one place (``plan_pipeline``), removing the duplicated boolean
   expressions that drifted in the frontend.
+
+Two server-side caches sit in front of the paid provider calls (Fase 4):
+
+* OCR cache: per-(image, engine, language) memo of bubble extraction.
+* Translation cache: per-(source-text, target-lang, engine) memo of single
+  bubble translations. Combined with text dedup, repeated short phrases /
+  onomatopoeias cost exactly one provider call across the whole app.
+
+Both caches are bypassable via ``settings.cache_enabled`` (used by tests).
 """
 from __future__ import annotations
 
@@ -16,6 +25,7 @@ import base64
 import logging
 from dataclasses import dataclass
 
+from ..config import get_settings
 from ..deps import KeyResolver
 from ..errors import ErrorCode, ProviderError
 from ..providers import deepl as deepl_provider
@@ -26,6 +36,7 @@ from ..providers import openai as openai_provider
 from ..providers import torii as torii_provider
 from ..schemas.common import EngineId, TextBubble, TokenUsage
 from ..schemas.pipeline import PipelineRequest, PipelineResponse
+from . import cache as cache_module
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +288,7 @@ async def run_pipeline(
     req: PipelineRequest, keys: KeyResolver
 ) -> PipelineResponse:
     image_bytes = base64.b64decode(req.image_base64)
+    image_sha = cache_module.hash_image(image_bytes)
     plan = plan_pipeline(req)
 
     warnings: list[str] = []
@@ -292,8 +304,12 @@ async def run_pipeline(
     if req.phase == "translate-only":
         bubbles = list(req.bubbles)
         if bubbles:
-            bubbles, translation_tokens = await _run_translation_step(
-                bubbles, plan, keys, target_language=req.options.target_language
+            bubbles, translation_tokens = await _translate_with_cache_and_dedup(
+                bubbles,
+                plan,
+                keys,
+                target_language=req.options.target_language,
+                target_lang_code=req.options.target_lang_code,
             )
         return PipelineResponse(
             bubbles=bubbles,
@@ -326,7 +342,9 @@ async def run_pipeline(
     # Step 1: OCR (and possibly translation, depending on the plan) plus the
     # optional cleaner — both run concurrently. Cleaner failure is a warning,
     # OCR failure is fatal (B1 fix vs the original Promise.all).
-    ocr_task = asyncio.create_task(_run_main_ocr(image_bytes, plan, req, keys))
+    ocr_task = asyncio.create_task(
+        _run_main_ocr_cached(image_bytes, image_sha, plan, req, keys)
+    )
     cleaner_task: asyncio.Task[bytes] | None = None
     if plan.use_torii_cleaner and not plan.use_torii_full:
         cleaner_task = asyncio.create_task(_run_torii_cleaner(image_bytes, req, keys))
@@ -353,8 +371,12 @@ async def run_pipeline(
     # Step 2: Standalone translation pass when the OCR engine didn't already
     # translate (e.g. GEMINI_PRO -> DEEPL, or GEMINI_PRO_FULL -> X disabled).
     if plan.needs_separate_translation and bubbles:
-        bubbles, translation_tokens = await _run_translation_step(
-            bubbles, plan, keys, target_language=req.options.target_language
+        bubbles, translation_tokens = await _translate_with_cache_and_dedup(
+            bubbles,
+            plan,
+            keys,
+            target_language=req.options.target_language,
+            target_lang_code=req.options.target_lang_code,
         )
 
     return PipelineResponse(
@@ -371,6 +393,170 @@ async def run_pipeline(
             "useToriiCleaner": plan.use_torii_cleaner,
         },
     )
+
+
+async def _run_main_ocr_cached(
+    image_bytes: bytes,
+    image_sha: str,
+    plan: Plan,
+    req: PipelineRequest,
+    keys: KeyResolver,
+) -> tuple[list[TextBubble], TokenUsage | None, str | None]:
+    """OCR wrapped by the in-memory LRU cache.
+
+    The cache only stores ``bubbles``. Tokens are reported as ``None`` on a
+    cache hit (since no provider call happened, the user pays nothing). The
+    Torii Full engine is never cached because its result includes a fully
+    rendered image (potentially several MB) — the OCR cache is meant to be
+    cheap to hold in RAM.
+    """
+    settings = get_settings()
+    cacheable = settings.cache_enabled and not plan.use_torii_full
+
+    cache_key: str | None = None
+    if cacheable:
+        target = req.options.target_language if plan.translation_done_in_ocr else None
+        cache_key = cache_module.OcrCache.make_key(
+            image_sha=image_sha,
+            ocr_engine=plan.ocr_engine,
+            source_language=req.options.source_language,
+            target_language=target,
+        )
+        cached_bubbles = cache_module.get_ocr_cache().get(cache_key)
+        if cached_bubbles is not None:
+            logger.info(
+                "OCR cache hit: image=%s engine=%s",
+                image_sha[:12],
+                plan.ocr_engine.value,
+            )
+            return cached_bubbles, None, None
+
+    bubbles, tokens, translated_image_b64 = await _run_main_ocr(
+        image_bytes, plan, req, keys
+    )
+
+    # Only cache when the OCR result is "just bubbles". If a translated image
+    # came back (Torii Full path, already excluded above) we'd be storing
+    # megabytes per entry, which defeats the LRU purpose.
+    if cache_key is not None and translated_image_b64 is None:
+        cache_module.get_ocr_cache().set(cache_key, bubbles)
+
+    return bubbles, tokens, translated_image_b64
+
+
+async def _translate_with_cache_and_dedup(
+    bubbles: list[TextBubble],
+    plan: Plan,
+    keys: KeyResolver,
+    *,
+    target_language: str,
+    target_lang_code: str,
+) -> tuple[list[TextBubble], TokenUsage | None]:
+    """Translate ``bubbles`` using the SQLite cache + per-page text dedup.
+
+    Three optimisations stack here:
+
+    1. **Cache hits** are removed from the work list before we touch the
+       provider — the user pays for them only once across all pages /
+       sessions.
+    2. **Whitespace-only bubbles** never reach the provider. They keep their
+       (possibly empty) translated text untouched.
+    3. **Identical source texts** in the same page are deduped: we send a
+       single representative to the provider and broadcast the result back
+       to every position.
+
+    The Torii engine is exempt — it doesn't translate via this codepath
+    (Torii's full pipeline produces a rendered image, not bubbles).
+    """
+    if not bubbles:
+        return [], None
+
+    settings = get_settings()
+    cache_enabled = settings.cache_enabled and plan.translation_engine != EngineId.TORII
+    cache = cache_module.get_translation_cache() if cache_enabled else None
+
+    # Step 1: cache lookup. ``output[i]`` will eventually hold the finalised
+    # bubble for the original index ``i``.
+    output: dict[int, TextBubble] = {}
+    needs_provider: list[tuple[int, TextBubble]] = []
+
+    for i, bubble in enumerate(bubbles):
+        norm = cache_module.normalise_source_text(bubble.original_text)
+        if cache is not None and norm:
+            hit = cache.get(
+                source_text=norm,
+                target_lang=target_lang_code,
+                engine=plan.translation_engine,
+            )
+            if hit is not None:
+                translated_text, bubble_type = hit
+                output[i] = bubble.model_copy(
+                    update={
+                        "translated_text": translated_text,
+                        "type": bubble_type,
+                    }
+                )
+                continue
+        needs_provider.append((i, bubble))
+
+    # Step 2: dedup the to-translate list by normalised source text. Empty
+    # / whitespace-only sources skip the provider entirely.
+    text_to_dedup_idx: dict[str, int] = {}
+    text_to_orig_indices: dict[str, list[int]] = {}
+    dedup_list: list[TextBubble] = []
+    empty_indices: list[int] = []
+
+    for orig_idx, bubble in needs_provider:
+        norm = cache_module.normalise_source_text(bubble.original_text)
+        if not norm:
+            empty_indices.append(orig_idx)
+            continue
+        if norm in text_to_dedup_idx:
+            text_to_orig_indices[norm].append(orig_idx)
+        else:
+            text_to_dedup_idx[norm] = len(dedup_list)
+            text_to_orig_indices[norm] = [orig_idx]
+            dedup_list.append(bubble)
+
+    # Step 3: call the provider with the deduped list (if any).
+    tokens: TokenUsage | None = None
+    if dedup_list:
+        translated_list, tokens = await _run_translation_step(
+            dedup_list, plan, keys, target_language=target_language
+        )
+    else:
+        translated_list = []
+
+    # Step 4: broadcast results back to every original position and cache.
+    for sent_bubble, returned_bubble in zip(
+        dedup_list, translated_list, strict=True
+    ):
+        norm = cache_module.normalise_source_text(sent_bubble.original_text)
+        for orig_idx in text_to_orig_indices[norm]:
+            original_bubble = bubbles[orig_idx]
+            output[orig_idx] = original_bubble.model_copy(
+                update={
+                    "translated_text": returned_bubble.translated_text,
+                    "type": returned_bubble.type,
+                }
+            )
+        if cache is not None:
+            cache.set(
+                source_text=norm,
+                target_lang=target_lang_code,
+                engine=plan.translation_engine,
+                translated_text=returned_bubble.translated_text,
+                bubble_type=returned_bubble.type,
+            )
+
+    # Empty-source bubbles pass through unchanged (preserves whatever was
+    # already in their translated_text — typically empty).
+    for idx in empty_indices:
+        output[idx] = bubbles[idx]
+
+    # Reconstruct the list in original order. ``output`` is guaranteed to
+    # cover every index by construction.
+    return [output[i] for i in range(len(bubbles))], tokens
 
 
 async def _run_main_ocr(
