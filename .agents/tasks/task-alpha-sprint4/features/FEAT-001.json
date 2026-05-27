@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Sprint 4 UI Polish: Global drag-and-drop overlay, improved visual status per page in sidebar, collapsible sidebar on desktop, and unified settings panel with tabs.",
+  "status": "completed",
+  "steps": [
+    "1. Create branch feature/alpha-sprint4 from current HEAD (feature/alpha-sprint3).",
+    "2. GLOBAL DRAG & DROP: In App.tsx, add state for isDragOverWindow. Add dragenter/dragover/dragleave/drop event handlers on the root <div>. Use a drag counter (ref) to handle nested element drag events. Only show overlay when dataTransfer contains files (check types for 'Files'). Render a full-screen overlay when isDragOverWindow is true: fixed inset-0 z-[200] with semi-transparent dark background (bg-black/70 backdrop-blur-sm), centered content with dashed animated border (border-2 border-dashed border-indigo-400), text 'Solte aqui para traduzir' in white with an upload icon. On drop, extract files from e.dataTransfer.files, call handleFilesSelect(Array.from(files)), and reset isDragOverWindow. Add keyframe animation for the dashed border (pulse or marching ants effect) in index.css.",
+    "3. IMPROVED VISUAL STATUS PER PAGE: In the history list section of App.tsx sidebar, enhance thumbnails: (a) Processing state: replace the simple spinner overlay with a pulsing ring animation around the thumbnail - add a ring-2 ring-indigo-500 animate-pulse class on the thumbnail container when status=processing. (b) Done state: add a small green checkmark badge in the corner of done thumbnails with a brief scale-in animation. (c) Error state: add animate-shake class (define in index.css) that briefly shakes the thumbnail. (d) Add a colored dot indicator next to each filename: green=done, blue=processing, red=error, gray=idle, orange=ocr-done. This is a small 6px rounded-full div with the appropriate bg color.",
+    "4. COLLAPSIBLE SIDEBAR ON DESKTOP: Add 'sidebarCollapsed' boolean and 'setSidebarCollapsed' action to useTranslatorStore (persisted). In App.tsx, read sidebarCollapsed from the store. Add a collapse toggle button (ChevronLeftIcon/ChevronRightIcon from heroicons) at the top-right corner of the sidebar header, visible only on md+ screens. When collapsed: sidebar width changes from w-80 to w-16, hide all text content (history items show only thumbnails, footer shows only icons). Use CSS transition-all duration-300 for smooth animation. On mobile: no change to drawer behavior. When collapsed, show tooltip (title attribute) on hover for icon buttons. The Library button becomes just the icon. Settings grid stays as icons (already are). Engine selectors are hidden when collapsed.",
+    "5. UNIFIED SETTINGS PANEL: Create features/settings/SettingsPanel.tsx - a large modal (max-w-2xl, h-[85vh]) with three tabs: 'Engines' (engine API key inputs for Gemini, OpenAI, DeepL, Ichigo, Torii - consolidate the key content from each settings modal), 'Fontes' (embed FontManagerModal content inline), 'Preferencias' (auto-translate toggle, clean mode default toggle, reading mode default). Add a Cog6ToothIcon button in the sidebar footer (replacing or alongside the grid of 6 buttons) that opens this unified panel. Keep backward compatibility: the individual modals still work when opened from other places (e.g., onAuthError callbacks). Add showSettingsPanel state to App.tsx and render <SettingsPanel> when open. Import Cog6ToothIcon from @heroicons/react/24/outline.",
+    "6. Run npm run typecheck && npm run build to verify everything compiles.",
+    "7. Commit all changes with message 'feat: sprint 4 - UI polish (global drag-drop, visual status, collapsible sidebar, unified settings)'.",
+    "8. Push the branch and open a PR against main with title 'Sprint 4: UI Polish' and a descriptive body listing the 4 improvements."
+  ],
+  "acceptance_criteria": [
+    "npm run typecheck passes with zero errors",
+    "npm run build succeeds producing dist/ output",
+    "Global drag-drop overlay renders when dragging files over the window",
+    "Sidebar history items show colored dot indicators and improved status animations",
+    "Sidebar can collapse/expand on desktop with smooth transition",
+    "Unified settings panel opens with tabbed interface containing all engine settings, font manager, and preferences",
+    "Branch feature/alpha-sprint4 is pushed and PR opened against main"
+  ],
+  "verification": [
+    "npm run typecheck && npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": "All 4 UI polish features implemented cleanly. Typecheck and build pass with zero errors. Added sidebarCollapsed to translator store (persisted). Created SettingsPanel with 3 tabs. Drag-drop uses counter-based approach for nested element handling. Visual status includes pulsing ring, checkmark badge, shake animation, and colored dot indicators. Cog6ToothIcon button added as 7th item in settings grid."
+}

@@ -1,0 +1,14 @@
+{
+  "task_id": "task-phase-3-5-remaining",
+  "task_description": "Implement roadmap phases 3-5 remaining items: canonical types, planPipeline state machine, Promise.allSettled for cleaner, move fonts to IDB, token tracking per engine, rewrite DownloadCanvas.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "skipped",
+    "docker_build": "skipped",
+    "summary": "npm run typecheck && npm run build both pass cleanly. 710 modules transformed, no TS errors."
+  }
+}

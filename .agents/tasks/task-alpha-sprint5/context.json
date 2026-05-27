@@ -1,0 +1,28 @@
+{
+  "project_type": "React SPA manga translator with Zustand state management",
+  "language": "TypeScript/React",
+  "build_system": "Vite with TypeScript checking via tsc --noEmit",
+  "test_framework": "Vitest (but tests NOT required for this sprint)",
+  "build_command": "npm run typecheck && npm run build",
+  "test_command": "N/A - no tests required for this sprint",
+  "verification_instructions": "Run npm run typecheck && npm run build to ensure no type errors and successful production build",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "npm install in the project root",
+  "environment_constraints": "COMMON_DEPENDENCIES network - npm install works. No Docker needed.",
+  "contribution_requirements": "Create branch feature/alpha-sprint5 from current HEAD, keep typecheck + build passing, commit and push, open PR against main",
+  "key_patterns": "Custom hooks in features/ (useViewerShortcuts, useTranslatePipeline, useTokenTracker); UI components in components/ui/; Store in store/ using Zustand persist middleware; MangaViewer.tsx is the main viewer component (~688 lines); App.tsx is the root (~857 lines) with sidebar, navigation, and engine config; types.ts has EngineId union type and TextBubble/ProcessedImage interfaces; touch events already exist in App.tsx for long-press clean mode toggle",
+  "relevant_files": [
+    "App.tsx",
+    "components/MangaViewer.tsx",
+    "features/viewer/useViewerShortcuts.ts",
+    "features/translator/useTokenTracker.ts",
+    "features/translator/useTranslatePipeline.ts",
+    "store/useTranslatorStore.ts",
+    "store/useSessionStore.ts",
+    "types.ts",
+    "components/ui/Toggle.tsx",
+    "components/ui/Toast.tsx",
+    "index.css"
+  ],
+  "directory_structure": "Root: App.tsx, types.ts, index.css, index.tsx. components/ has MangaViewer.tsx, BubbleOverlay.tsx, ViewerToolbar.tsx, Uploader.tsx, ComparisonSlider.tsx, LibraryManager.tsx, ui/ (Toggle, Toast, BatchProgressBar, ShortcutsOverlay). features/ has viewer/ (useViewerShortcuts, downloadCanvas), translator/ (useTranslatePipeline, useTokenTracker, planPipeline, ichigoLogout), settings/ (modal components). store/ has useTranslatorStore, useAuthStore, useSessionStore, useLibraryStore, useFontsStore, useToastStore, migrations."
+}

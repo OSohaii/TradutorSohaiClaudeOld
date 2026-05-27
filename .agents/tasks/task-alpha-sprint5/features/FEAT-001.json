@@ -1,0 +1,52 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Sprint 5 - Immersive Reading Mode with swipe navigation, pinch-to-zoom, cost estimation, and first-use onboarding. All four features are implemented as a single coherent unit.",
+  "status": "completed",
+  "steps": [
+    "STEP 1 - Create branch: git checkout -b feature/alpha-sprint5 from current HEAD (feature/alpha-sprint4)",
+
+    "STEP 2 - Create features/viewer/useSwipeNavigation.ts: A custom hook that handles touch-based swipe gestures for page navigation. Use touchstart/touchmove/touchend events. Threshold: 50px horizontal movement, less than 30px vertical deviation. Swipe left = next page, swipe right = previous page. Only active in single-page mode and NOT editing mode. Must distinguish from pinch (only when 1 finger active). Include a page transition CSS animation (slide-in from side). Hook accepts: containerRef, onNext, onPrev, enabled (boolean based on single mode + not editing). Return nothing but attach/detach listeners via useEffect.",
+
+    "STEP 3 - Create features/viewer/usePinchZoom.ts: A custom hook for pinch-to-zoom on mobile. Detect two-finger touch, calculate distance between points, update zoom accordingly. Bounds: 0.5 to 4x (same as button controls in MangaViewer). Transform-origin at pinch center. Double-tap detection (two taps within 300ms at same approximate position) to reset zoom to 1x. Must coexist with swipe (swipe = 1 finger, pinch = 2 fingers). Hook accepts: containerRef, zoom/setZoom state, enabled. Uses touch events directly.",
+
+    "STEP 4 - Integrate swipe navigation into MangaViewer.tsx: Import and call useSwipeNavigation in MangaViewer, passing containerRef, onNext, onPrev, and enabled = !stripMode && !isEditingMode && !isPaintMode && !isAddingBubble && !editingBubbleId. Add a page indicator overlay (page X/Y) that shows briefly (2 seconds fade) when navigation occurs - uses CSS animation. The page indicator needs total pages + current index, so add totalPages and currentPageIndex to MangaViewerProps (App.tsx will pass them).",
+
+    "STEP 5 - Integrate pinch-to-zoom into MangaViewer.tsx: Import and call usePinchZoom, passing containerRef, zoom/setZoom, and enabled = !stripMode. This replaces/augments the existing zoom buttons (they still work but now touch zoom also works).",
+
+    "STEP 6 - Clean mode tap zones: In MangaViewer.tsx, when isCleanMode is true, add an overlay div with three tap zones: left 20% taps prev, right 20% taps next, center 60% toggles UI back (calls onToggleCleanMode). Use onClick handlers on absolutely positioned divs. Show a brief reading indicator (page X/Y) when navigating in clean mode that fades after 1.5s.",
+
+    "STEP 7 - Create features/translator/costEstimation.ts: A utility module with ENGINE_PRICING constant map and estimateCost function. ENGINE_PRICING keyed by EngineId with input/output prices per 1M tokens: GEMINI_FLASH/GEMINI_35_FLASH $0.15/$0.60, GEMINI_PRO $1.25/$10, GPT4O $2.50/$10, GPT4O_MINI $0.15/$0.60. Other engines (ICHIGO, TORII, DEEPL, GOOGLE) = 0/0 (free or not token-based). estimateCost(ocrEngine: EngineId, transEngine: EngineId, pageCount: number): number. Average tokens per page: OCR = 1500 input + 500 output, Translation = 500 input + 500 output. Formula: for each page, (ocr_input_tokens * ocr_input_price + ocr_output_tokens * ocr_output_price + trans_input_tokens * trans_input_price + trans_output_tokens * trans_output_price) / 1_000_000.",
+
+    "STEP 8 - Add cost estimation display in App.tsx sidebar: When autoTranslate is OFF and there are idle images in history, show a small cost estimate label near the 'Traduzir Todas' button and near each individual 'Traduzir' play button. Use estimateCost with current ocrEngine, transEngine, and page count. Format as '~$X.XXX estimado'. Also show it in the OCR review banner in MangaViewer.tsx (next to 'Confirmar e Traduzir' button) for single-page cost.",
+
+    "STEP 9 - Create components/OnboardingModal.tsx: A modal overlay shown on first visit. Checks localStorage for 'mangalens-onboarding-done'. If not set, shows a modal with 4 steps (carousel style): Step 1 'Arraste ou selecione suas paginas de manga' (ArrowUpTrayIcon), Step 2 'Escolha o engine de OCR e traducao' (Cog6ToothIcon), Step 3 'Veja a traducao aplicada nos baloes' (SparklesIcon), Step 4 'Edite baloes, salve na biblioteca, exporte' (PencilSquareIcon from @heroicons/react/24/outline). Navigate with 'Proximo'/'Anterior' buttons and dot indicators. 'Comecar' button on last step dismisses and sets localStorage flag. Styling matches existing modals (dark slate-900 bg, rounded-xl, backdrop blur).",
+
+    "STEP 10 - Add OnboardingModal to App.tsx and a re-open trigger: Import and render OnboardingModal at the bottom of App.tsx (next to other modals). Add a small '?' button in the sidebar footer grid (settings buttons area) that re-opens the onboarding by clearing the localStorage flag and setting a state. The onboarding modal manages its own visibility via localStorage + an optional forceOpen prop.",
+
+    "STEP 11 - Add CSS for page transition animation in index.css: Add @keyframes slide-in-left, slide-in-right, and fade-out for the page indicator. Add .animate-slide-left, .animate-slide-right, .animate-fade-indicator utility classes.",
+
+    "STEP 12 - Update App.tsx to pass totalPages and currentPageIndex to MangaViewer: In the single-page MangaViewer render, compute and pass totalPages={history.length} and currentPageIndex={getCurrentIndex()}.",
+
+    "STEP 13 - Run npm run typecheck && npm run build to verify everything compiles cleanly. Fix any type errors.",
+
+    "STEP 14 - Commit all changes with message 'feat: sprint 5 - immersive reading, pinch-zoom, cost estimation, onboarding' and push to origin feature/alpha-sprint5. Create PR against main."
+  ],
+  "acceptance_criteria": [
+    "npm run typecheck passes with no errors",
+    "npm run build produces a successful production bundle",
+    "useSwipeNavigation hook exists and is integrated into MangaViewer",
+    "usePinchZoom hook exists and is integrated into MangaViewer",
+    "Clean mode has tap zones for navigation",
+    "costEstimation.ts exports ENGINE_PRICING and estimateCost",
+    "Cost estimate labels appear near translate buttons when autoTranslate is off",
+    "OnboardingModal shows on first visit and can be re-triggered",
+    "Page indicator shows briefly on swipe navigation",
+    "Branch feature/alpha-sprint5 is pushed and PR is opened against main"
+  ],
+  "verification": [
+    "npm run typecheck && npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": "All 4 features implemented and verified. Typecheck and build pass cleanly. Swipe navigation uses 50px threshold. Pinch zoom bounds 0.5-4x. Cost estimation uses ENGINE_PRICING map. Onboarding uses localStorage key mangalens-onboarding-done. Added ? button to settings grid (now 8 cols). Clean mode tap zones: 20/60/20 split."
+}

@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-006",
+  "type": "fix",
+  "description": "Address 3 review issues: (1) SSRF protection on /api/fetch-image, (2) credential gate on manual translate paths, (3) strip-mode undo snapshot before bubble update.",
+  "status": "completed",
+  "steps": [
+    "1. In backend/app/routers/fetch_image.py: add _is_private_url helper that validates scheme is http/https and resolves hostname to check for private/loopback/link-local IPs. Call it at top of endpoint handler before making httpx request.",
+    "2. In features/translator/useTranslatePipeline.ts: add checkCredentials() helper and call it at start of handleTranslateImage, handleTranslateAll, and retryImage.",
+    "3. In store/useSessionStore.ts: add pushBubbleSnapshotForImage(imageId: string) method that snapshots a specific image's bubbles.",
+    "4. In App.tsx: update strip-mode onBubbleUpdate to call pushBubbleSnapshotForImage before updateBubbleForImage."
+  ],
+  "acceptance_criteria": [
+    "fetch_image endpoint rejects private/internal URLs with 400",
+    "handleTranslateImage, handleTranslateAll, retryImage check credentials before processing",
+    "Strip-mode bubble edits push undo snapshot before mutating",
+    "npm run typecheck passes",
+    "npm run build passes"
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": "All 3 review fixes implemented and verified. Typecheck and build pass. SSRF protection uses socket.getaddrinfo to resolve hostnames and rejects private/loopback/link-local/reserved IPs. Credential check helper is shared across handleTranslateImage, handleTranslateAll, and retryImage. pushBubbleSnapshotForImage added to store and called in strip-mode onBubbleUpdate."
+}

@@ -1,0 +1,20 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Create branch phase-3-5-remaining from current HEAD, install deps, verify baseline typecheck+build pass.",
+  "status": "completed",
+  "steps": [
+    "Run `git checkout -b phase-3-5-remaining` from current HEAD (phase-4a-feature-extraction)",
+    "Run `npm install` to ensure node_modules are fresh",
+    "Run `npm run typecheck && npm run build` to confirm green baseline"
+  ],
+  "acceptance_criteria": [
+    "Branch phase-3-5-remaining exists and is checked out",
+    "`npm run typecheck && npm run build` exits 0"
+  ],
+  "verification": [
+    "npm run typecheck && npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": "Branch created from phase-4a-feature-extraction (HEAD at 6bedea9). npm install added 49 packages (227 total). Typecheck and build pass cleanly with no errors. Baseline is green."
+}

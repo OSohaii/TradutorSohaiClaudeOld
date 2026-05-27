@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-004",
+  "type": "refactor",
+  "description": "Extract Toolbar, Download, and Shortcuts from MangaViewer.tsx into separate files to reduce the 1065-line component.",
+  "status": "completed",
+  "steps": [
+    "1. Create features/viewer/useViewerShortcuts.ts: extract the useEffect keyboard handler from MangaViewer (the one with handleKeyDown for ESC, Ctrl+B, Ctrl+I, Delete, +/-, Tab, Ctrl+Z, Ctrl+Shift+Z). It should accept params: { activeBubble, editingBubbleId, isEditingMode, isAddingBubble, onBubbleUpdate, onBubbleDelete, calculatedFontSizes, copiedStyle, navigateBubble, copyStyle, pasteStyle, saveToHistory, undoBubbles, redoBubbles, setEditingBubbleId, setIsAddingBubble, setNewBubbleStart }. Return nothing (it is a side-effect hook).",
+    "2. Create features/viewer/downloadCanvas.ts: extract the `handleDownload` function as a standalone utility. It should accept params: { image: ProcessedImage, imgElement: HTMLImageElement, canvasElement: HTMLCanvasElement | null, defaultFont?: string, globalBold: boolean, globalItalic: boolean, globalBubbleScale: number, isBubbleTransparent: boolean, showTextStroke: boolean, calculatedFontSizes: Record<string, number> }. Return a Promise<void>.",
+    "3. Create components/ViewerToolbar.tsx: extract the floating toolbar JSX (the 'activeBubble && (...)' block near the bottom of MangaViewer). It needs props for all the bubble editing state and callbacks. This is the largest extraction (~140 lines of JSX).",
+    "4. Update MangaViewer.tsx to import and use the extracted modules: call useViewerShortcuts(), use handleDownload from downloadCanvas, render <ViewerToolbar /> instead of inline JSX.",
+    "5. Ensure all imports are correct and no circular dependencies exist."
+  ],
+  "acceptance_criteria": [
+    "MangaViewer.tsx is significantly shorter (target: under 700 lines)",
+    "features/viewer/useViewerShortcuts.ts handles all keyboard shortcuts",
+    "features/viewer/downloadCanvas.ts handles the download logic",
+    "components/ViewerToolbar.tsx renders the floating bubble editing toolbar",
+    "All functionality remains identical (shortcuts, download, toolbar editing)",
+    "npm run typecheck passes",
+    "npm run build passes"
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": "MangaViewer.tsx reduced from 1086 to 603 lines. All three extractions successful. Icons XMarkIcon, CheckIcon, TrashIcon, SparklesIcon, ArrowsPointingOutIcon, SunIcon, Bars3BottomLeftIcon, Bars3Icon, Bars3BottomRightIcon, ArrowsPointingInIcon, AdjustmentsVerticalIcon, DocumentDuplicateIcon, ClipboardDocumentIcon, ArrowUturnLeftIcon, ArrowUturnRightIcon, MinusIcon, PlusIcon were removed from MangaViewer imports. ChevronLeftIcon and ChevronRightIcon remain because they are used in the top header bar navigation."
+}

@@ -1,0 +1,44 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Toast notification system + enhanced keyboard shortcuts + batch progress bar + shortcuts help overlay",
+  "status": "completed",
+  "steps": [
+    "Create branch feature/alpha-sprint3 from current HEAD (feature/alpha-sprint2)",
+    "Create store/useToastStore.ts - a zustand store with: toasts array (id, message, type: success|error|info|warning, createdAt), addToast(message, type) which auto-generates id and sets a 4-second auto-dismiss timer, removeToast(id). Types exported.",
+    "Create components/ui/Toast.tsx - renders toast stack in bottom-right corner (fixed position, z-50+). Each toast has colored left border (green/red/blue/yellow based on type), dark bg, white text, auto-dismiss animation (fade out), close button. Stack vertically with gap.",
+    "Import and render <ToastContainer /> at root level in App.tsx (after modals, before closing </div>)",
+    "Replace all alert() calls in LibraryManager.tsx with useToastStore().addToast() calls: 'Nao ha paginas traduzidas para salvar.' -> warning, 'X pagina(s) salva(s) com sucesso!' -> success, 'Erro ao salvar paginas.' -> error, 'Erro ao carregar capitulo.' -> error",
+    "Replace alert() calls in Uploader.tsx: 'Nao foi possivel carregar a imagem...' -> error, 'Nenhuma imagem encontrada no HTML...' -> warning, 'Falha ao baixar as imagens selecionadas.' -> error",
+    "Replace alert() in FontManagerModal.tsx: 'Arquivo de fonte invalido ou corrompido.' -> error",
+    "Replace alert() in IchigoSettingsModal.tsx with toast error",
+    "Extend features/viewer/useViewerShortcuts.ts: add new params (onPrev, onNext, toggleViewMode, toggleCleanMode). Add keyboard handlers for: ArrowLeft -> onPrev (only when not in input/textarea), ArrowRight -> onNext (only when not in input/textarea), Space -> toggleViewMode (only when not in input/textarea and not editingBubbleId), KeyF -> toggleCleanMode (only when not in input/textarea and not editingBubbleId), '?' -> show shortcuts overlay (new param: setShowShortcuts)",
+    "In MangaViewer.tsx: pass onPrev, onNext, and new toggle callbacks to useViewerShortcuts. Add viewMode toggle (ORIGINAL <-> TRANSLATED). For cleanMode toggle and shortcuts overlay, lift state from App or use a callback prop.",
+    "Add isCleanMode and setIsCleanMode as props to MangaViewer (or use a callback onToggleCleanMode prop), wire F key to toggle it",
+    "Create components/ui/ShortcutsOverlay.tsx - a modal/overlay listing all available keyboard shortcuts in a nice grid. Show shortcut key + description. Include: Left/Right arrows (page nav), Space (toggle view), F (fullscreen/clean), Tab/Shift+Tab (bubble nav), Ctrl+Z/Y (undo/redo), Ctrl+B/I (bold/italic), +/- (font size), Delete (remove bubble), Ctrl+Shift+C/V (copy/paste style), Esc (cancel), ? (this help). Render when '?' is pressed.",
+    "Add state for showShortcuts in MangaViewer.tsx, pass setShowShortcuts to useViewerShortcuts, render ShortcutsOverlay conditionally",
+    "Create components/ui/BatchProgressBar.tsx - a thin progress bar shown at the top of the main content area when images are being processed. Derive count from useSessionStore: processingCount = history.filter(img => img.status === 'processing').length, totalCount = history.length, shows 'Traduzindo X/Y...' with a percentage-width colored bar. Hidden when processingCount === 0.",
+    "Render BatchProgressBar in App.tsx inside the main content area, above the viewer content (after the mobile header, before the flex-1 overflow-hidden div)",
+    "Run npm run typecheck && npm run build to verify everything passes",
+    "Commit all changes with message 'feat: sprint 3 - toasts, keyboard shortcuts, progress bar, shortcuts overlay'",
+    "Push branch and create PR against main"
+  ],
+  "acceptance_criteria": [
+    "npm run typecheck passes with zero errors",
+    "npm run build produces a successful production build",
+    "Toast store exists and exports addToast/removeToast",
+    "Toast component renders in bottom-right, auto-dismisses after 4s",
+    "All alert() calls replaced with toast notifications",
+    "Arrow Left/Right navigate pages when not in input",
+    "Space toggles view mode when not editing",
+    "F toggles clean mode when not editing",
+    "? shows shortcuts overlay modal",
+    "BatchProgressBar shows during processing, hidden otherwise",
+    "New branch feature/alpha-sprint3 created from feature/alpha-sprint2"
+  ],
+  "verification": [
+    "npm run typecheck && npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": "All alert() calls replaced with toast notifications. Keyboard shortcuts (ArrowLeft/Right, Space, F, ?) all gated behind isInInput check. Build and typecheck pass cleanly."
+}

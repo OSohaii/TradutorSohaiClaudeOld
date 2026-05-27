@@ -1,0 +1,7 @@
+{
+  "task_id": "task-alpha-sprint5",
+  "task_description": "Sprint 5 - Advanced UX features: Immersive Reading Mode with swipe navigation, Pinch-to-Zoom for mobile, Cost Estimation before translation, and First-Use Onboarding tutorial",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

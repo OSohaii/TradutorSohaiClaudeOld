@@ -1,0 +1,28 @@
+{
+  "project_type": "React SPA with Vite + FastAPI BFF backend (manga translation app)",
+  "language": "TypeScript (frontend), Python (backend)",
+  "build_system": "Vite for frontend, pip for backend. Scripts in package.json.",
+  "test_framework": "No frontend tests (user explicitly said not to add). Backend uses pytest.",
+  "build_command": "npm run typecheck && npm run build",
+  "test_command": "npm run typecheck && npm run build",
+  "verification_instructions": "Run `npm run typecheck && npm run build` in the project root to verify no TS errors and vite builds successfully.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "npm install in project root. Backend: pip install -r backend/requirements.txt",
+  "environment_constraints": "No tests to add per user request. Must keep typecheck+build passing. Branch from current HEAD (phase-4a-feature-extraction).",
+  "contribution_requirements": "Do NOT add tests. Keep typecheck + build passing. Create branch phase-3-5-remaining from current HEAD.",
+  "key_patterns": "Zustand stores with persist middleware in store/. Feature hooks in features/translator/. Pipeline API in services/api/pipelineApi.ts. Types in types.ts (flat file). IndexedDB pattern in services/imageStorage.ts (same DB, versioned upgrades). BubbleOverlay.tsx handles rendering. MangaViewer.tsx has handleDownload for canvas export.",
+  "relevant_files": [
+    "types.ts",
+    "store/useTranslatorStore.ts",
+    "store/useFontsStore.ts",
+    "store/index.ts",
+    "features/translator/useTranslatePipeline.ts",
+    "features/translator/useTokenTracker.ts",
+    "services/api/pipelineApi.ts",
+    "services/imageStorage.ts",
+    "components/MangaViewer.tsx",
+    "components/BubbleOverlay.tsx",
+    "features/settings/FontManagerModal.tsx"
+  ],
+  "directory_structure": "Root: App.tsx, types.ts, index.tsx. store/ has zustand stores. features/ has settings modals and translator hooks. services/ has API client and IndexedDB. components/ has MangaViewer and BubbleOverlay. backend/ is FastAPI."
+}

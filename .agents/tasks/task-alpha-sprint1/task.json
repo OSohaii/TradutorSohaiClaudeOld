@@ -1,0 +1,7 @@
+{
+  "task_id": "task-alpha-sprint1",
+  "task_description": "Add OpenAI GPT-4o/GPT-4o-mini as OCR+translation engines, configurable source/target languages, parallel batch translation (concurrency 3), and browser notifications on batch completion.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

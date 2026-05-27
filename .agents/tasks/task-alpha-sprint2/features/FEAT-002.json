@@ -1,0 +1,29 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Before/After Comparison Slider - A draggable slider overlay that reveals the original image on one side and the translated image (with bubble overlays) on the other side. Activated via a button in MangaViewer toolbar, only available when image status is 'done'.",
+  "status": "completed",
+  "steps": [
+    "Step 1 - Create ComparisonSlider component: Create components/ComparisonSlider.tsx. Props: originalImageUrl (string), translatedImageUrl (string | undefined), bubbles (TextBubble[]), defaultFont, globalBold, globalItalic, globalBubbleScale, onClose (callback). The component renders two overlapping images with a vertical draggable divider. Left side shows original image (clip-path or overflow hidden to the left of the divider). Right side shows either the translatedImageUrl (if available, for Torii full results) or the original image with BubbleOverlay components rendered on top (for OCR+translate results). The divider is a vertical line with a circular drag handle in the middle. Dragging moves the divider horizontally. Labels: 'Original' on the left side, 'Traduzido' on the right side.",
+    "Step 2 - Slider interaction: Implement drag handling with mouse events (onMouseDown on handle, onMouseMove/onMouseUp on document). Also support touch events for mobile. The divider position is a percentage (0-100%) stored in state, defaulting to 50%. Use CSS clip-path: `inset(0 0 0 ${position}%)` on the right image and `inset(0 ${100-position}% 0 0)` on the left image (or equivalent approach with two absolutely positioned containers and overflow:hidden with variable width).",
+    "Step 3 - Add toggle button in MangaViewer toolbar: In components/MangaViewer.tsx, add a new state `showComparison` (boolean, default false). Add a button in the toolbar (next to the download button area) that toggles the comparison slider. Only show this button when image.status is 'done'. Use an appropriate icon (e.g. a split/columns icon from heroicons). When showComparison is true, render ComparisonSlider as a full-screen overlay (or within the viewer area, absolutely positioned over the image).",
+    "Step 4 - Style and polish: The slider should have a dark semi-transparent background. The divider line should be 2px wide, white/indigo colored. The handle should be a circle (32px) with an icon suggesting horizontal drag (arrows-left-right or similar). Add smooth transitions. Ensure it works on mobile (touch events). Add an 'X' close button in the top-right corner of the overlay."
+  ],
+  "acceptance_criteria": [
+    "npm run typecheck passes with zero errors",
+    "npm run build succeeds",
+    "ComparisonSlider.tsx component exists with proper TypeScript types",
+    "MangaViewer shows a comparison button in toolbar when image status is 'done'",
+    "Clicking the comparison button opens a slider overlay",
+    "The slider has a draggable divider that reveals original vs translated",
+    "Labels 'Original' and 'Traduzido' are visible on respective sides",
+    "Close button dismisses the comparison view",
+    "Touch events work for mobile dragging"
+  ],
+  "verification": [
+    "Run `npm run typecheck` in /projects/sandbox/TradutorSohaiClaude and confirm zero errors",
+    "Run `npm run build` in /projects/sandbox/TradutorSohaiClaude and confirm successful build"
+  ],
+  "blocked_reason": null,
+  "findings": "Implemented successfully. The comparison button shows in two places: (1) next to download button when hasOverlays is true (OCR results), and (2) separately for isFullServerResult (Torii results). Both typecheck and build pass cleanly."
+}

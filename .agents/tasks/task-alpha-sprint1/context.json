@@ -1,0 +1,32 @@
+{
+  "project_type": "Full-stack manga translator - React/TypeScript frontend + Python FastAPI backend (BFF pattern)",
+  "language": "TypeScript (frontend), Python (backend)",
+  "build_system": "Vite + npm for frontend, pip/uvicorn for backend",
+  "test_framework": "Vitest for frontend, pytest for backend",
+  "build_command": "npm run typecheck && npm run build (from project root)",
+  "test_command": "npm run typecheck (no tests required per instructions)",
+  "verification_instructions": "Run `npm run typecheck && npm run build` from project root. Both must pass clean.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "npm install in project root; pip install -r requirements.txt in backend/",
+  "environment_constraints": "OPEN_INTERNET - full network access. No Docker needed.",
+  "contribution_requirements": "No tests required. Keep typecheck + build passing. Create feature branch, commit, push, open PR against main.",
+  "key_patterns": "Backend providers: each in backend/app/providers/<name>.py exporting async functions. BYOK: X-Byok-<Provider> headers resolved in deps.py KeyResolver. Frontend stores: zustand with persist middleware. Settings modals: features/settings/<Provider>SettingsModal.tsx. EngineId enum shared between frontend types.ts and backend schemas/common.py. Pipeline: frontend calls pipelineApi.ts -> backend router -> pipeline.py orchestrator -> providers.",
+  "relevant_files": [
+    "backend/app/providers/gemini.py",
+    "backend/app/schemas/common.py",
+    "backend/app/services/pipeline.py",
+    "backend/app/deps.py",
+    "backend/app/config.py",
+    "backend/app/routers/health.py",
+    "types.ts",
+    "store/useTranslatorStore.ts",
+    "store/useAuthStore.ts",
+    "store/index.ts",
+    "features/translator/useTranslatePipeline.ts",
+    "features/settings/GeminiSettingsModal.tsx",
+    "services/api/pipelineApi.ts",
+    "services/api/client.ts",
+    "App.tsx"
+  ],
+  "directory_structure": "Root: App.tsx, types.ts, store/, features/, services/, components/. Backend: backend/app/ with providers/, routers/, schemas/, services/, config.py, deps.py, main.py."
+}

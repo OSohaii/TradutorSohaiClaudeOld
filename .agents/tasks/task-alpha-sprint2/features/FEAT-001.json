@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Preview OCR before Translation - Split pipeline into 2 phases so user can review OCR results before spending tokens on translation. When auto-translate is OFF and user clicks 'Traduzir', show intermediate 'ocr-done' state with original text in bubbles, then let user confirm/cancel before translating.",
+  "status": "completed",
+  "steps": [
+    "Step 1 - Create branch: Create git branch 'feature/alpha-sprint2' from current HEAD (feature/alpha-sprint1).",
+    "Step 2 - Backend: Add 'phase' field to PipelineRequest in backend/app/schemas/pipeline.py. Add a new optional field `phase: Literal['full', 'ocr-only', 'translate-only'] = 'full'`. For 'ocr-only': force skip_translation=True regardless of engine combo, return bubbles with originalText only (translatedText empty). For 'translate-only': skip OCR entirely, accept bubbles from the request body and run only the translation step on them. Update PipelineRequest to accept an optional `bubbles` field (list[TextBubble], default empty) for 'translate-only' mode.",
+    "Step 3 - Backend pipeline service: In backend/app/services/pipeline.py, modify `run_pipeline()` to check `req.phase`. If 'ocr-only': run OCR with skip_translation forced to True, return bubbles with empty translatedText. If 'translate-only': skip OCR, use req.bubbles directly, run _run_translation_step on them. If 'full' (default): behave exactly as today.",
+    "Step 4 - Frontend types: In types.ts, add 'ocr-done' to the ProcessedImage status union: `'idle' | 'processing' | 'ocr-done' | 'done' | 'error'`.",
+    "Step 5 - Frontend API types: In services/api/pipelineApi.ts, add optional `phase?: 'full' | 'ocr-only' | 'translate-only'` to PipelineRequest interface. Add optional `bubbles?: TextBubble[]` to PipelineRequest for translate-only mode.",
+    "Step 6 - Frontend pipeline hook: In features/translator/useTranslatePipeline.ts, add two new functions exported in the return value: (a) `handleOcrOnly(imageId: string)` - fetches image base64, calls runPipeline with phase='ocr-only', stores bubbles, sets status to 'ocr-done'. (b) `handleTranslateOnly(imageId: string)` - reads existing bubbles from the image, calls the pipeline with phase='translate-only' and the existing bubbles, sets status to 'done'. Also modify existing `handleTranslateImage`: when autoTranslate is OFF, call handleOcrOnly instead of the full pipeline. Add `handleCancelOcr(imageId: string)` that clears bubbles and sets status back to 'idle'.",
+    "Step 7 - Frontend App.tsx sidebar: In the history list items, when an image has status 'ocr-done', show a different badge/indicator (e.g. magnifying glass icon with 'OCR' text). Add two new buttons in the sidebar for 'ocr-done' images: 'Confirmar e Traduzir' (calls handleTranslateOnly) and 'Cancelar' (calls handleCancelOcr).",
+    "Step 8 - Frontend MangaViewer: When image.status is 'ocr-done', show bubbles using originalText instead of translatedText. In the BubbleOverlay, add logic: if the parent passes a prop like `showOriginalText={true}`, display `bubble.originalText` instead of `bubble.translatedText`. MangaViewer passes this prop when status is 'ocr-done'. Enable editing mode by default when status is 'ocr-done' so user can adjust/delete detected bubbles. Show a floating banner at the top: 'Revisao OCR - Ajuste os baloes detectados' with 'Confirmar e Traduzir' and 'Cancelar' buttons.",
+    "Step 9 - Wire it all together: Update the useTranslatePipeline return type to include handleOcrOnly, handleTranslateOnly, handleCancelOcr. Update App.tsx to destructure and pass these new functions where needed. Ensure the 'Traduzir' button in sidebar (for idle images) still works: if autoTranslate is ON, full pipeline; if OFF, ocr-only pipeline."
+  ],
+  "acceptance_criteria": [
+    "npm run typecheck passes with zero errors",
+    "npm run build succeeds",
+    "Backend PipelineRequest schema accepts optional 'phase' field with values 'full', 'ocr-only', 'translate-only'",
+    "ProcessedImage type includes 'ocr-done' status",
+    "When auto-translate is OFF and user clicks Traduzir on an idle image, the pipeline runs OCR-only and status becomes 'ocr-done'",
+    "When status is 'ocr-done', MangaViewer shows bubbles with original text (not translated text)",
+    "Sidebar shows 'Confirmar e Traduzir' and 'Cancelar' buttons for ocr-done images",
+    "'Confirmar e Traduzir' triggers translate-only phase and transitions to 'done'",
+    "'Cancelar' clears bubbles and returns to 'idle'",
+    "When auto-translate is ON, behavior is unchanged (full pipeline as before)"
+  ],
+  "verification": [
+    "Run `npm run typecheck` in /projects/sandbox/TradutorSohaiClaude and confirm zero errors",
+    "Run `npm run build` in /projects/sandbox/TradutorSohaiClaude and confirm successful build"
+  ],
+  "blocked_reason": null,
+  "findings": "Implementation complete. All acceptance criteria met: typecheck passes, build succeeds, phase field added to backend PipelineRequest, ProcessedImage includes ocr-done status, MangaViewer shows original text and review UI when ocr-done, sidebar shows confirm/cancel buttons. No pre-existing test failures (no tests required). The BubbleOverlay useLayoutEffect dependency array was extended to include showOriginalText for proper re-rendering."
+}

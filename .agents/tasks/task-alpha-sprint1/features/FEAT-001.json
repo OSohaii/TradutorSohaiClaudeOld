@@ -1,0 +1,57 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Add OpenAI GPT-4o and GPT-4o-mini as OCR and translation engines (full-stack), add configurable source/target languages, implement parallel batch translation (concurrency pool of 3), and add browser notifications on batch completion.",
+  "status": "completed",
+  "steps": [
+    "Step 1 - Create branch: Create a new git branch `feature/alpha-sprint1` from the current HEAD of `feature/ux-improvements`.",
+
+    "Step 2 - Backend: OpenAI provider: Create `backend/app/providers/openai.py` following the pattern in `backend/app/providers/gemini.py`. Use httpx to call `https://api.openai.com/v1/chat/completions` with vision support for OCR and regular chat completions for translation. OCR function should accept image_bytes, model name, api_key, skip_translation boolean, and source_language string. It should return tuple[list[TextBubble], TokenUsage]. Translation function should accept bubbles, model, api_key, and target_language and return tuple[list[TextBubble], TokenUsage]. Use the same retry-with-backoff pattern as gemini.py. The OCR prompt should include the source_language parameter. Models: 'gpt-4o' for GPT4O, 'gpt-4o-mini' for GPT4O_MINI.",
+
+    "Step 3 - Backend: Add GPT4O and GPT4O_MINI to EngineId enum in `backend/app/schemas/common.py`.",
+
+    "Step 4 - Backend: Add `openai_api_key: str = ''` to Settings in `backend/app/config.py`.",
+
+    "Step 5 - Backend: Add OpenAI BYOK support to `backend/app/deps.py`: Add `openai: str | None = None` to the Byok dataclass. Add `x_byok_openai` header parameter to `get_byok()`. Add `for_openai()` method to KeyResolver (same pattern as for_gemini). Add GPT4O and GPT4O_MINI entries to ENGINE_TO_BYOK mapping with value 'openai'.",
+
+    "Step 6 - Backend: Update `backend/app/services/pipeline.py` to support OpenAI engines. Add `_OPENAI_MODELS` dict mapping EngineId.GPT4O -> 'gpt-4o' and EngineId.GPT4O_MINI -> 'gpt-4o-mini'. Add `_is_openai(engine)` helper. Update `plan_pipeline()` to handle OpenAI OCR engines (they work like Gemini - separate OCR then optional separate translation). Update `_run_main_ocr` to handle OpenAI engines by calling the new openai provider. Update `_run_translation_step` to handle OpenAI translation engines. Also add `source_language` field to PipelineOptions in `backend/app/schemas/pipeline.py` with default 'Japanese'. Pass source_language through OCR calls for both Gemini and OpenAI (update Gemini's OCR prompt to accept source language too).",
+
+    "Step 7 - Backend: Update `backend/app/routers/health.py` to include 'openai' in the providers dict.",
+
+    "Step 8 - Frontend: Add `'GPT4O' | 'GPT4O_MINI'` to the EngineId type union in `types.ts`.",
+
+    "Step 9 - Frontend: Add `openaiApiKey: string` (default ''), `setOpenaiApiKey` action to `store/useAuthStore.ts`. Include it in the partialize for persistence.",
+
+    "Step 10 - Frontend: Add `sourceLanguage: string` (default 'Japanese') and `targetLanguage: string` (default 'Portugues (Brasil)') and `targetLangCode: string` (default 'pt-BR') to `store/useTranslatorStore.ts` with setters. These replace the hardcoded values currently in useTranslatePipeline.ts.",
+
+    "Step 11 - Frontend: Create `features/settings/OpenAISettingsModal.tsx` following the exact pattern of `features/settings/GeminiSettingsModal.tsx`. Use a green-themed color (emerald). Link to https://platform.openai.com/api-keys for the API key.",
+
+    "Step 12 - Frontend: Update `services/api/client.ts` to add `openai?: string` to ByokKeys interface and add `if (byok.openai) headers['X-Byok-Openai'] = byok.openai;` to byokHeaders function.",
+
+    "Step 13 - Frontend: Update `services/api/pipelineApi.ts` PipelineOptions interface to add `sourceLanguage?: string`.",
+
+    "Step 14 - Frontend: Update `features/translator/useTranslatePipeline.ts`: (a) Read sourceLanguage, targetLanguage, targetLangCode from useTranslatorStore. (b) Read openaiApiKey from useAuthStore. (c) Add openai key to buildByok(). (d) Pass sourceLanguage, targetLanguage, targetLangCode from the store (not hardcoded) in runPipeline's options. (e) Add credential check for GPT4O/GPT4O_MINI engines. (f) Implement parallel batch: change the sequential for-loop in handleFilesSelect to process up to 3 images concurrently using a simple pool pattern (process in chunks of 3 with Promise.all, or use a semaphore). (g) After all images finish processing (in handleFilesSelect and handleTranslateAll), send a browser Notification ('Traducao Concluida!') if document is not focused and Notification.permission is granted. Request permission on first batch start if not yet asked.",
+
+    "Step 15 - Frontend: Update `App.tsx`: (a) Import and wire OpenAISettingsModal. (b) Add GPT4O and GPT4O_MINI options to the OCR select and Translator select dropdowns. (c) Add source language selector ('Idioma de Origem') and target language selector ('Idioma Alvo') in the sidebar footer controls section (between the existing OCR/Translator selects and the Font selector). Options for source: Japanese, Korean, Chinese (Simplified), Chinese (Traditional), English, Spanish, French. Options for target: Portugues (Brasil), English, Spanish, French, Japanese, Korean. (d) Add an OpenAI settings button to the grid (6th button, green-themed). (e) Add onAuthError case for 'openai'. (f) Read openaiApiKey from useAuthStore for the button badge state. (g) The settings grid should now be grid-cols-6 to fit the new button.",
+
+    "Step 16 - Frontend: Update `store/index.ts` to export EngineId from types (already done, just verify).",
+
+    "Step 17 - Verification: Run `npm install` (in case any new deps needed), then `npm run typecheck && npm run build`. Both must pass. Commit all changes with a descriptive message and push branch."
+  ],
+  "acceptance_criteria": [
+    "GPT4O and GPT4O_MINI appear as options in both OCR and Translator dropdowns in the UI",
+    "OpenAI settings modal can be opened from the settings grid and saves the API key to localStorage",
+    "Source language and target language selectors appear in the sidebar and their values are persisted",
+    "The pipeline passes sourceLanguage to the backend and it is used in OCR prompts",
+    "Batch processing of 3+ images runs with concurrency of 3 (not sequential)",
+    "A browser notification fires when a batch completes and the tab is not focused",
+    "Backend OpenAI provider calls the OpenAI chat completions API with vision for OCR",
+    "`npm run typecheck && npm run build` passes clean"
+  ],
+  "verification": [
+    "Run `npm run typecheck && npm run build` from project root - both must pass with zero errors",
+    "Verify the branch `feature/alpha-sprint1` exists with all changes committed"
+  ],
+  "blocked_reason": null,
+  "findings": "All steps implemented successfully. typecheck and build pass clean. OpenAI provider uses httpx for API calls. Parallel batch uses chunked Promise.all with concurrency 3. Browser notifications use the standard Notification API."
+}
