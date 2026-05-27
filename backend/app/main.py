@@ -32,11 +32,37 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json" if settings.is_dev else None,
     )
 
-    origins = settings.cors_origin_list or ["*"]
+    # CORS configuration.
+    #
+    # Per the CORS spec (Fetch standard, MDN), `Access-Control-Allow-Origin: *`
+    # is INCOMPATIBLE with `Access-Control-Allow-Credentials: true`. Browsers
+    # reject responses that combine both, so the previous code (origins=["*"]
+    # + allow_credentials=True) silently broke any deployment that relied on
+    # the fallback to wildcard.
+    #
+    # Behavior:
+    # - If the operator configured an explicit origin list via CORS_ORIGINS
+    #   env var, we trust it and keep credentials enabled.
+    # - If the list is empty (dev fallback), we use ["*"] and force
+    #   allow_credentials=False so the response is at least valid; cookie /
+    #   credential-bearing requests will need a properly configured deploy.
+    configured_origins = settings.cors_origin_list
+    if configured_origins:
+        origins = configured_origins
+        allow_credentials = True
+    else:
+        origins = ["*"]
+        allow_credentials = False
+        logging.getLogger(__name__).warning(
+            "CORS: no CORS_ORIGINS configured; falling back to '*' with "
+            "allow_credentials=False. Set CORS_ORIGINS to enable credentialed "
+            "requests."
+        )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
-        allow_credentials=True,
+        allow_credentials=allow_credentials,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
     )
