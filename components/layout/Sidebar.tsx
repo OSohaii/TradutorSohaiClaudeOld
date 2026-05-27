@@ -49,6 +49,15 @@ interface SidebarProps {
   /** Closes the mobile drawer. */
   onClose: () => void;
 
+  /**
+   * When true, the sidebar renders as a static panel that fills its
+   * container (used inside a `<Panel>` of `react-resizable-panels` on
+   * desktop). It drops the drawer-mode classes (`fixed`, `translate-x-*`,
+   * fixed widths) and the in-header collapse / close affordances, since
+   * the panel itself owns those.
+   */
+  embedded?: boolean;
+
   /** Translation pipeline handlers (owned by App via useTranslatePipeline). */
   handleTranslateAll: () => Promise<void> | void;
   handleTranslateImage: (id: string) => Promise<void> | void;
@@ -78,6 +87,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
+  embedded = false,
   handleTranslateAll,
   handleTranslateImage,
   handleTranslateOnly,
@@ -121,7 +131,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const autoTranslate = useTranslatorStore(s => s.autoTranslate);
   const setAutoTranslate = useTranslatorStore(s => s.setAutoTranslate);
 
-  const sidebarCollapsed = useTranslatorStore(s => s.sidebarCollapsed);
+  const sidebarCollapsedRaw = useTranslatorStore(s => s.sidebarCollapsed);
   const setSidebarCollapsed = useTranslatorStore(s => s.setSidebarCollapsed);
 
   // Auth (BYOK badges)
@@ -172,11 +182,17 @@ const Sidebar: React.FC<SidebarProps> = ({
     || ocrEngine === 'GEMINI_35_FLASH_FULL'
   );
 
+  // When embedded, ignore the in-header collapse toggle: the surrounding
+  // <Panel> owns the collapse behaviour. We also drop the drawer-mode
+  // classes and force a "fits the container" layout. By shadowing
+  // `sidebarCollapsed` we let every downstream JSX block stay unchanged.
+  const sidebarCollapsed = embedded ? false : sidebarCollapsedRaw;
+  const asideClass = embedded
+    ? 'h-full w-full bg-slate-900 border-r border-slate-800 flex flex-col'
+    : `fixed md:relative z-50 h-full w-[85vw] ${sidebarCollapsed ? 'md:w-16' : 'md:w-80'} bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`;
+
   return (
-    <aside className={`
-      fixed md:relative z-50 h-full w-[85vw] ${sidebarCollapsed ? 'md:w-16' : 'md:w-80'} bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col transition-all duration-300 ease-in-out
-      ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-    `}>
+    <aside className={asideClass}>
       {/* Sidebar Header */}
       <div className="p-4 border-b border-slate-800 flex items-center justify-between">
         <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'md:justify-center md:w-full' : ''}`}>
@@ -203,17 +219,23 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {/* Collapse toggle (desktop only) */}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden md:flex p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-            title={sidebarCollapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
-          >
-            {sidebarCollapsed ? <ChevronRightIcon className="w-4 h-4" /> : <ChevronLeftIcon className="w-4 h-4" />}
-          </button>
-          <button onClick={onClose} className="md:hidden p-1 text-slate-400">
-            <XMarkIcon className="w-6 h-6" />
-          </button>
+          {/* Collapse toggle (desktop only). Hidden when embedded — the
+              surrounding resizable Panel owns collapse via Ctrl+B and the
+              draggable separator. */}
+          {!embedded && (
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden md:flex p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+              title={sidebarCollapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
+            >
+              {sidebarCollapsed ? <ChevronRightIcon className="w-4 h-4" /> : <ChevronLeftIcon className="w-4 h-4" />}
+            </button>
+          )}
+          {!embedded && (
+            <button onClick={onClose} className="md:hidden p-1 text-slate-400">
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          )}
         </div>
       </div>
 
