@@ -424,30 +424,56 @@ export const useTranslatePipeline = (
 
   const handleTranslateAll = async (): Promise<void> => {
     if (!checkCredentials()) return;
-    const history = useSessionStore.getState().history;
-    const idleImages = history.filter(h => h.status === 'idle');
-    const ocrDoneImages = history.filter(h => h.status === 'ocr-done');
+
+    // Snapshot the IDs of images to process at the time the user clicked
+    // "Translate All". The set is FROZEN here:
+    // - Newly uploaded pages during the batch are NOT silently picked up
+    //   (the user can run the action again).
+    // - Pages that change state during the batch (e.g. user manually
+    //   triggers OCR on one) are skipped on the per-chunk re-check below.
+    //
+    // Previously this captured the ProcessedImage objects directly and
+    // never re-checked their status, leading to wasted work (calling
+    // handleTranslateImage on a page the user had already processed) and
+    // confusing behavior when the user removed a page mid-batch.
+    const initialHistory = useSessionStore.getState().history;
+    const idleIds = initialHistory.filter(h => h.status === 'idle').map(h => h.id);
+    const ocrDoneIds = initialHistory.filter(h => h.status === 'ocr-done').map(h => h.id);
 
     // Request notification permission
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       void Notification.requestPermission();
     }
 
-    const totalCount = idleImages.length + ocrDoneImages.length;
+    const totalCount = idleIds.length + ocrDoneIds.length;
 
     // Parallel batch: process up to 3 images concurrently
     const CONCURRENCY = 3;
 
+    // Re-fetch the current snapshot of an image right before dispatching it,
+    // so we don't kick off a translate request on a page that was removed
+    // or whose state moved out from under us.
+    const stillIdle = (id: string): boolean => {
+      const img = useSessionStore.getState().history.find(h => h.id === id);
+      return img?.status === 'idle';
+    };
+    const stillOcrDone = (id: string): boolean => {
+      const img = useSessionStore.getState().history.find(h => h.id === id);
+      return img?.status === 'ocr-done';
+    };
+
     // Process idle images through handleTranslateImage (full or ocr-only depending on autoTranslate)
-    for (let i = 0; i < idleImages.length; i += CONCURRENCY) {
-      const chunk = idleImages.slice(i, i + CONCURRENCY);
-      await Promise.all(chunk.map(img => handleTranslateImage(img.id)));
+    for (let i = 0; i < idleIds.length; i += CONCURRENCY) {
+      const chunk = idleIds.slice(i, i + CONCURRENCY).filter(stillIdle);
+      if (chunk.length === 0) continue;
+      await Promise.all(chunk.map(id => handleTranslateImage(id)));
     }
 
     // Process ocr-done images through handleTranslateOnly
-    for (let i = 0; i < ocrDoneImages.length; i += CONCURRENCY) {
-      const chunk = ocrDoneImages.slice(i, i + CONCURRENCY);
-      await Promise.all(chunk.map(img => handleTranslateOnly(img.id)));
+    for (let i = 0; i < ocrDoneIds.length; i += CONCURRENCY) {
+      const chunk = ocrDoneIds.slice(i, i + CONCURRENCY).filter(stillOcrDone);
+      if (chunk.length === 0) continue;
+      await Promise.all(chunk.map(id => handleTranslateOnly(id)));
     }
 
     // Browser notification on batch completion

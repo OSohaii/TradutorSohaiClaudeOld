@@ -15,4 +15,5 @@ def test_health_returns_ok(client):
         "torii": False,
         "google": False,
         "ichigo": False,
+        "openai": False,
     }

@@ -53,49 +53,93 @@ const Uploader: React.FC<UploaderProps> = ({ onFilesSelect, isProcessing }) => {
     }
   };
 
+  /**
+   * Validates that a URL string only uses http/https schemes and is well-formed.
+   * Blocks javascript:, data:, vbscript:, file:, ftp: and any other dangerous
+   * scheme that could be abused via injected HTML.
+   *
+   * Returns the normalized URL string when safe, or null when the URL should
+   * be discarded.
+   */
+  const sanitizeImageUrl = (rawUrl: string, baseUrl: string): string | null => {
+    if (!rawUrl) return null;
+
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return null;
+
+    // Reject obvious dangerous schemes early (cheap fast-path).
+    const lower = trimmed.toLowerCase();
+    const DANGEROUS_SCHEMES = ['javascript:', 'data:', 'vbscript:', 'file:', 'about:', 'blob:'];
+    if (DANGEROUS_SCHEMES.some(scheme => lower.startsWith(scheme))) {
+      return null;
+    }
+
+    let resolved: URL;
+    try {
+      // The URL constructor handles protocol-relative (//), absolute (/path),
+      // and fully qualified URLs correctly when given a base. This replaces
+      // the previous error-prone string concatenation.
+      resolved = new URL(trimmed, baseUrl);
+    } catch {
+      return null;
+    }
+
+    // Allow http/https only. The URL constructor would happily produce
+    // file://, javascript:, data:, blob: etc otherwise.
+    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') {
+      return null;
+    }
+
+    return resolved.toString();
+  };
+
   const extractImagesFromHtml = (htmlContent: string, baseUrl: string): string[] => {
     try {
+      // Validate baseUrl up-front; bail if it isn't http(s) so resolution
+      // below stays predictable.
+      let normalizedBase: string;
+      try {
+        const baseParsed = new URL(baseUrl);
+        if (baseParsed.protocol !== 'http:' && baseParsed.protocol !== 'https:') {
+          return [];
+        }
+        normalizedBase = baseParsed.toString();
+      } catch {
+        return [];
+      }
+
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, 'text/html');
-      
+
       // Find images
       const imgElements = Array.from(doc.querySelectorAll('img'));
       const foundUrls = new Set<string>();
+      const MAX_URLS = 500; // Hard cap to prevent DoS from malicious HTML.
 
-      imgElements.forEach(img => {
+      for (const img of imgElements) {
+        if (foundUrls.size >= MAX_URLS) break;
+
         // Check src, data-src, data-lazy-src (common in manga readers)
-        let src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src');
-        
-        if (src) {
-          // Fix relative URLs
-          if (src.startsWith('//')) {
-            src = 'https:' + src;
-          } else if (src.startsWith('/')) {
-            try {
-              const origin = new URL(baseUrl).origin;
-              src = origin + src;
-            } catch (e) {
-              // ignore
-            }
-          } else if (!src.startsWith('http') && !src.startsWith('data:')) {
-             // relative path without /
-             try {
-               const origin = new URL(baseUrl).origin;
-               // simple join, could be improved with URL api but suffices for scraping
-               src = `${origin}/${src}`;
-             } catch (e) {
-               // ignore
-             }
-          }
+        const candidates = [
+          img.getAttribute('src'),
+          img.getAttribute('data-src'),
+          img.getAttribute('data-lazy-src'),
+        ].filter((s): s is string => Boolean(s));
 
-          // Simple filtering to avoid icons, tracking pixels, etc.
-          if (src && src.startsWith('http') && !src.match(/icon|logo|avatar|tracker|pixel|spacer|clear/i)) {
-              foundUrls.add(src);
-          }
+        for (const candidate of candidates) {
+          const sanitized = sanitizeImageUrl(candidate, normalizedBase);
+          if (!sanitized) continue;
+
+          // Simple filtering to avoid icons, tracking pixels, etc. Same
+          // pattern as before, but applied AFTER scheme validation.
+          if (/icon|logo|avatar|tracker|pixel|spacer|clear/i.test(sanitized)) continue;
+
+          foundUrls.add(sanitized);
+          break; // One src per <img> is enough.
         }
-      });
+      }
       return Array.from(foundUrls);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Erro ao processar HTML", e);
       return [];
     }
@@ -266,7 +310,13 @@ const Uploader: React.FC<UploaderProps> = ({ onFilesSelect, isProcessing }) => {
                     ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-700 hover:border-slate-500'}
                   `}
                 >
-                  <img src={imgUrl} alt={`scan-${idx}`} className="w-full h-full object-cover" loading="lazy" />
+                  <img
+                    src={imgUrl}
+                    alt={`scan-${idx}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
                   <div className={`absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                     {isSelected && <CheckCircleIcon className="w-8 h-8 text-indigo-400 bg-white rounded-full" />}
                   </div>

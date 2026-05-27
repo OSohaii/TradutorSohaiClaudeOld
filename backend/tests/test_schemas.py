@@ -90,6 +90,8 @@ def test_engine_ids_match_frontend_strings():
         "TORII",
         "DEEPL",
         "GOOGLE",
+        "GPT4O",
+        "GPT4O_MINI",
     }
 
 

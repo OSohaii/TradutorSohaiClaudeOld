@@ -190,6 +190,18 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
     },
   });
 
+  // Clear any pending page-indicator timer when the viewer unmounts. Without
+  // this, fast page navigation could fire setShowPageIndicator(false) on an
+  // unmounted component (React warning) and leave dangling browser timers.
+  useEffect(() => {
+    return () => {
+      if (pageIndicatorTimer.current) {
+        clearTimeout(pageIndicatorTimer.current);
+        pageIndicatorTimer.current = null;
+      }
+    };
+  }, []);
+
   // Pinch-to-zoom hook
   usePinchZoom({
     containerRef,
@@ -324,18 +336,36 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
         if (ctx) {
           if (image.maskDataUrl) {
             const maskImg = new Image();
-            maskImg.onload = () => {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(maskImg, 0, 0);
-            };
+            // addEventListener instead of .onload= so other listeners
+            // (e.g. set by useSwipeNavigation or future React refs) are
+            // preserved. { once: true } also auto-cleans the listener.
+            maskImg.addEventListener(
+              'load',
+              () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(maskImg, 0, 0);
+              },
+              { once: true },
+            );
             maskImg.src = image.maskDataUrl;
           } else {
              ctx.clearRect(0, 0, canvas.width, canvas.height);
           }
         }
       };
-      if (img.complete) initCanvas();
-      else img.onload = initCanvas;
+      if (img.complete) {
+        initCanvas();
+      } else {
+        // addEventListener (vs img.onload =) avoids stomping on any other
+        // load handler that React or another effect may have attached to
+        // the same <img>. The cleanup below ensures we don't double-fire
+        // when the effect re-runs (e.g. when image.maskDataUrl changes
+        // before the previous load completed).
+        img.addEventListener('load', initCanvas, { once: true });
+        return () => {
+          img.removeEventListener('load', initCanvas);
+        };
+      }
     }
   }, [image.id, image.status, image.maskDataUrl, isFullServerResult, stripMode]);
 

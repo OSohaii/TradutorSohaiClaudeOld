@@ -11,6 +11,7 @@ import base64
 import json
 import logging
 import re
+import uuid
 from typing import Any
 
 import httpx
@@ -135,8 +136,13 @@ def _bubble_from_raw(raw: dict, index: int) -> TextBubble | None:
         bubble_type = "sfx"
         display = re.sub(r"^\[?SFX:\s*", "", display, flags=re.IGNORECASE).rstrip("]").strip()
 
+    # Use uuid for collision-free IDs across parallel pipeline calls.
+    # Previously used asyncio.get_event_loop().time() * 1000 which could
+    # produce duplicate IDs when multiple OCR requests completed in the
+    # same millisecond (common in batch translation), causing React key
+    # collisions and cross-image state bleed in the frontend.
     return TextBubble(
-        id=f"bubble-{index}-{int(asyncio.get_event_loop().time() * 1000)}",
+        id=f"bubble-{index}-{uuid.uuid4().hex[:8]}",
         original_text=raw.get("originalText", ""),
         translated_text=display,
         type=bubble_type,
