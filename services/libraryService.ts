@@ -5,6 +5,18 @@ import { saveImage, loadImage, deleteImage, deleteImages } from './imageStorage'
 const LIBRARY_STORAGE_KEY = 'mangalens_library';
 const MAX_THUMBNAIL_SIZE = 150;
 
+// Lightweight dev-only logger. In production builds (`import.meta.env.PROD`)
+// these calls are no-ops, so we don't leak base64 lengths, page IDs, or
+// "ENCONTRADO/NAO ENCONTRADO" debug strings into end-users' devtools.
+// Errors and real warnings still go through console.error / console.warn so
+// remote support can ask users to copy them from the console.
+const debugLog = (...args: unknown[]): void => {
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.log(...args);
+  }
+};
+
 // Gerar ID único
 const generateId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -209,20 +221,18 @@ const urlToBase64 = async (url: string): Promise<string> => {
 // Converter ProcessedImage para MangaPage (salva imagem no IndexedDB)
 export const processedImageToPage = async (image: ProcessedImage): Promise<MangaPage> => {
   const pageId = generateId();
-  
-  console.log('=== SALVANDO PÁGINA ===');
-  console.log('Page ID:', pageId);
-  console.log('Image URL original:', image.imageUrl?.substring(0, 100));
-  
+
+  debugLog('[library] saving page', { pageId, fileName: image.fileName });
+
   // Converter URLs para base64 antes de salvar
   let imageBase64 = '';
   let maskBase64 = '';
   let translatedBase64 = '';
-  
+
   try {
     if (image.imageUrl) {
       imageBase64 = await urlToBase64(image.imageUrl);
-      console.log('Image convertida para base64, length:', imageBase64.length);
+      debugLog('[library] image -> base64', { bytes: imageBase64.length });
     }
     if (image.maskDataUrl) {
       maskBase64 = image.maskDataUrl; // Já deve ser base64
@@ -233,18 +243,18 @@ export const processedImageToPage = async (image: ProcessedImage): Promise<Manga
   } catch (e) {
     console.error('Erro ao converter imagem para base64:', e);
   }
-  
+
   const thumbnail = await createThumbnail(imageBase64 || image.imageUrl);
-  console.log('Thumbnail criado, length:', thumbnail?.length || 0);
-  
+  debugLog('[library] thumbnail created', { bytes: thumbnail?.length ?? 0 });
+
   // Salvar imagem grande no IndexedDB
   if (imageBase64.length > 0) {
     await saveImage(pageId, imageBase64, maskBase64, translatedBase64);
-    console.log('Imagem salva no IndexedDB com sucesso!');
+    debugLog('[library] image stored in IndexedDB', { pageId });
   } else {
-    console.warn('AVISO: imageUrl está vazia após conversão! Não foi possível salvar a imagem.');
+    console.warn('[library] empty imageUrl after conversion; skipping IndexedDB save');
   }
-  
+
   return {
     id: pageId,
     fileName: image.fileName,
@@ -266,21 +276,19 @@ export const pageToProcessedImage = async (page: MangaPage): Promise<ProcessedIm
     console.error('Erro ao parsear bubbles:', e);
   }
 
-  console.log('=== CARREGANDO PÁGINA ===');
-  console.log('Page ID:', page.id);
-  console.log('Thumbnail length:', page.thumbnailUrl?.length || 0);
-  
+  debugLog('[library] loading page', { pageId: page.id });
+
   // Carregar imagem do IndexedDB
   const imageData = await loadImage(page.id);
-  
-  console.log('ImageData do IndexedDB:', imageData ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
-  if (imageData) {
-    console.log('imageUrl length:', imageData.imageUrl?.length || 0);
-  }
-  
+  debugLog('[library] IndexedDB lookup', {
+    pageId: page.id,
+    found: Boolean(imageData),
+    imageBytes: imageData?.imageUrl?.length ?? 0,
+  });
+
   // Fallback: tentar usar dados antigos se IndexedDB não tiver
   const finalImageUrl = imageData?.imageUrl || page.imageUrl || page.thumbnailUrl || '';
-  console.log('Final imageUrl length:', finalImageUrl?.length || 0);
+  debugLog('[library] resolved imageUrl', { pageId: page.id, bytes: finalImageUrl?.length ?? 0 });
   
   return {
     id: page.id,
