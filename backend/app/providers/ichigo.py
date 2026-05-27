@@ -82,14 +82,26 @@ async def login(email: str, password: str) -> str:
 def _resize_if_needed(image_bytes: bytes, max_dim: int = 1600) -> tuple[bytes, int, int]:
     """Resize the image down so its largest side equals ``max_dim``.
 
-    The resize is mainly to reduce upload payload to Ichigo, which behaves
-    badly with very large images. Falls back to the original bytes if Pillow
-    is unavailable or the image is already small.
+    Returns ``(image_bytes, width, height)`` where width/height are the
+    decoded dimensions (needed by ``translate`` to normalize Ichigo's
+    pixel-space bounding boxes to the 0-1000 schema).
+
+    Raises a ProviderError if Pillow is unavailable: silently returning
+    ``(bytes, 0, 0)`` used to break Ichigo bubbles in a confusing way
+    (every bounding box ended up clamped to (1000, 1000, 1000, 1000)
+    because the normalization divided by 1, producing invisible/stacked
+    bubbles with no error surfaced to the user).
     """
     try:
         from PIL import Image  # type: ignore[import-untyped]
-    except ImportError:  # pragma: no cover - Pillow optional
-        return image_bytes, 0, 0
+    except ImportError as exc:
+        raise ProviderError(
+            ErrorCode.UNKNOWN,
+            "ichigo",
+            "Pillow nao esta instalado no backend. Ichigo precisa do Pillow "
+            "para normalizar as bounding boxes (pip install Pillow ou veja "
+            "backend/requirements.txt).",
+        ) from exc
 
     try:
         with Image.open(io.BytesIO(image_bytes)) as img:
@@ -104,9 +116,14 @@ def _resize_if_needed(image_bytes: bytes, max_dim: int = 1600) -> tuple[bytes, i
             buf = io.BytesIO()
             resized.save(buf, format="JPEG", quality=80)
             return buf.getvalue(), new_size[0], new_size[1]
-    except Exception as exc:  # noqa: BLE001 - resizing is best-effort
-        logger.warning("Ichigo image resize failed: %s; sending original", exc)
-        return image_bytes, 0, 0
+    except ProviderError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - decoding failure is fatal here
+        raise ProviderError(
+            ErrorCode.INVALID_INPUT,
+            "ichigo",
+            f"Falha ao decodificar imagem para o Ichigo: {exc}",
+        ) from exc
 
 
 async def translate(
@@ -118,10 +135,9 @@ async def translate(
 ) -> list[TextBubble]:
     """Send the page to Ichigo and convert its response to ``TextBubble``s."""
     target_code = LANGUAGE_CODES.get(target_language_name, "pt")
+    # _resize_if_needed now raises if Pillow is missing or decoding fails,
+    # so we always have valid (width, height) to normalize bounding boxes.
     resized_bytes, width, height = _resize_if_needed(image_bytes)
-    if width == 0 or height == 0:
-        # Fallback: if PIL didn't run, we can't normalize boxes. Use raw bytes.
-        width, height = 1, 1
 
     payload = {
         "base64Images": [

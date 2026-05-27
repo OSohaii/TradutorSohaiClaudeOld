@@ -6,6 +6,11 @@ httpx==0.28.1
 google-genai==0.3.0
 python-multipart==0.0.20
 python-dotenv==1.0.1
+# Pillow is required by the Ichigo provider to normalize the pixel-space
+# bounding boxes returned by ichigoreader.com to the 0-1000 schema used by
+# the rest of the pipeline. Without it, Ichigo translation silently produced
+# bubbles with bad coordinates.
+Pillow==11.0.0
 
 # Test
 pytest==8.3.4
