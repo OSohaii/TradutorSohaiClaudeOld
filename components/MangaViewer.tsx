@@ -190,6 +190,18 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
     },
   });
 
+  // Clear any pending page-indicator timer when the viewer unmounts. Without
+  // this, fast page navigation could fire setShowPageIndicator(false) on an
+  // unmounted component (React warning) and leave dangling browser timers.
+  useEffect(() => {
+    return () => {
+      if (pageIndicatorTimer.current) {
+        clearTimeout(pageIndicatorTimer.current);
+        pageIndicatorTimer.current = null;
+      }
+    };
+  }, []);
+
   // Pinch-to-zoom hook
   usePinchZoom({
     containerRef,
