@@ -156,6 +156,10 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
   const imgRef = useRef<HTMLImageElement>(null);
   const isDrawing = useRef(false);
 
+  // Image dimensions stored in state so they can be read safely during render.
+  // Updated via the <img> onLoad callback below.
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+
   // Page indicator state (shows briefly after navigation)
   const [showPageIndicator, setShowPageIndicator] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
@@ -538,6 +542,10 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
             className="w-full h-auto shadow-2xl select-none"
             style={{ display: 'block' }}
             onClick={() => editingBubbleId && setEditingBubbleId(null)}
+            onLoad={(e) => {
+              const el = e.currentTarget;
+              setImageDimensions({ width: el.naturalWidth, height: el.naturalHeight });
+            }}
           />
 
           {/* Error overlay */}
@@ -715,8 +723,8 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
         <StatusBar
           zoom={zoom}
           setZoom={setZoom}
-          imageWidth={imgRef.current?.naturalWidth}
-          imageHeight={imgRef.current?.naturalHeight}
+          imageWidth={imageDimensions?.width}
+          imageHeight={imageDimensions?.height}
           bubbleCount={image.bubbles.length}
         />
       )}
