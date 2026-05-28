@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ProcessedImage, ViewMode, TextBubble } from '../types';
 import BubbleOverlay from './BubbleOverlay';
 import ViewerToolbar from './ViewerToolbar';
@@ -41,6 +42,8 @@ interface MangaViewerProps {
   totalPages?: number;
   currentPageIndex?: number;
   costLabel?: string;
+  desktopTopBarPortal?: HTMLElement | null;
+  statusBarPortal?: HTMLElement | null;
 }
 
 export type FontOption = { name: string; value: string; type?: 'font' };
@@ -104,6 +107,8 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
   totalPages = 1,
   currentPageIndex = 0,
   costLabel,
+  desktopTopBarPortal,
+  statusBarPortal,
 }) => {
   const [zoom, setZoom] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.TRANSLATED);
@@ -485,39 +490,53 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
     });
   };
 
+  const canRenderDesktopChrome = !stripMode && !isCleanMode;
+  const hasExternalDesktopChrome = Boolean(desktopTopBarPortal && statusBarPortal);
+
+  const desktopTopBar = canRenderDesktopChrome ? (
+    <DesktopTopBar
+      onPrev={onPrev}
+      onNext={onNext}
+      imageStatus={image.status}
+      isFullServerResult={isFullServerResult}
+      hasOverlays={hasOverlays}
+      isOcrDone={isOcrDone}
+      handleDownload={handleDownload}
+      setShowComparison={setShowComparison}
+      isPaintMode={isPaintMode}
+      setIsPaintMode={setIsPaintMode}
+      isEditingMode={isEditingMode}
+      setIsEditingMode={setIsEditingMode}
+      isAddingBubble={isAddingBubble}
+      setIsAddingBubble={setIsAddingBubble}
+      hideBubbleBorders={hideBubbleBorders}
+      setHideBubbleBorders={setHideBubbleBorders}
+      isBubbleTransparent={isBubbleTransparent}
+      setIsBubbleTransparent={setIsBubbleTransparent}
+      viewMode={viewMode}
+      setViewMode={setViewMode}
+      onConfirmTranslate={onConfirmTranslate}
+      onCancelOcr={onCancelOcr}
+    />
+  ) : null;
+
+  const statusBar = canRenderDesktopChrome ? (
+    <StatusBar
+      zoom={zoom}
+      setZoom={setZoom}
+      imageWidth={imageDimensions?.width}
+      imageHeight={imageDimensions?.height}
+      bubbleCount={image.bubbles.length}
+    />
+  ) : null;
+
   return (
-    <div className={`flex flex-col h-full ${stripMode ? '' : 'bg-slate-900 rounded-lg border border-slate-700 shadow-2xl overflow-hidden'} relative`}>
-      
-      {!stripMode && !isCleanMode && (
-        <DesktopTopBar
-          onPrev={onPrev}
-          onNext={onNext}
-          imageStatus={image.status}
-          isFullServerResult={isFullServerResult}
-          hasOverlays={hasOverlays}
-          isOcrDone={isOcrDone}
-          handleDownload={handleDownload}
-          setShowComparison={setShowComparison}
-          isPaintMode={isPaintMode}
-          setIsPaintMode={setIsPaintMode}
-          isEditingMode={isEditingMode}
-          setIsEditingMode={setIsEditingMode}
-          isAddingBubble={isAddingBubble}
-          setIsAddingBubble={setIsAddingBubble}
-          hideBubbleBorders={hideBubbleBorders}
-          setHideBubbleBorders={setHideBubbleBorders}
-          isBubbleTransparent={isBubbleTransparent}
-          setIsBubbleTransparent={setIsBubbleTransparent}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          onConfirmTranslate={onConfirmTranslate}
-          onCancelOcr={onCancelOcr}
-        />
-      )}
+    <div className={`flex flex-col h-full ${stripMode || hasExternalDesktopChrome ? '' : 'bg-slate-900 rounded-lg border border-slate-700 shadow-2xl overflow-hidden'} relative`}>
+      {desktopTopBarPortal && desktopTopBar ? createPortal(desktopTopBar, desktopTopBarPortal) : desktopTopBar}
 
       <div 
         ref={containerRef}
-        className={`flex-1 relative bg-slate-950 ${stripMode ? '' : 'overflow-auto flex justify-center items-start p-4 scrollbar-hide'}`}
+        className={`flex-1 min-h-0 relative bg-slate-950 ${stripMode ? '' : 'overflow-auto flex justify-center items-start p-4 scrollbar-hide'}`}
       >
         {/* Overlay para capturar cliques fora - fecha edição */}
         {editingBubbleId && (
@@ -719,15 +738,7 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
       )}
 
       {/* StatusBar */}
-      {!stripMode && !isCleanMode && (
-        <StatusBar
-          zoom={zoom}
-          setZoom={setZoom}
-          imageWidth={imageDimensions?.width}
-          imageHeight={imageDimensions?.height}
-          bubbleCount={image.bubbles.length}
-        />
-      )}
+      {statusBarPortal && statusBar ? createPortal(statusBar, statusBarPortal) : statusBar}
     </div>
   );
 };

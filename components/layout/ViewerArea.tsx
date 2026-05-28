@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowsPointingInIcon } from '@heroicons/react/24/outline';
 
 import MangaViewer from '../MangaViewer';
@@ -85,6 +85,9 @@ const ViewerArea: React.FC<ViewerAreaProps> = ({
 
   // Local navigation helpers (cheap; recompute on every render).
   const currentIndex = history.findIndex(img => img.id === currentImage?.id);
+  const [desktopTopBarPortal, setDesktopTopBarPortal] = useState<HTMLDivElement | null>(null);
+  const [statusBarPortal, setStatusBarPortal] = useState<HTMLDivElement | null>(null);
+  const useDesktopViewerFrame = Boolean(currentImage && readingMode === 'single' && !isCleanMode);
   const handleNext = () => {
     if (currentIndex !== -1 && currentIndex < history.length - 1) {
       setCurrentImage(history[currentIndex + 1]);
@@ -110,7 +113,7 @@ const ViewerArea: React.FC<ViewerAreaProps> = ({
       <BatchProgressBar />
 
       {/* Content View */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 min-h-0 overflow-hidden relative">
         {!currentImage ? (
           <div className="h-full overflow-y-auto p-4 md:p-10 flex flex-col items-center justify-center">
             <div className="max-w-xl w-full text-center space-y-6">
@@ -133,30 +136,65 @@ const ViewerArea: React.FC<ViewerAreaProps> = ({
           <>
             {readingMode === 'single' ? (
               /* Single Page Mode (Standard MangaViewer) */
-              <MangaViewer
-                image={currentImage}
-                onNext={currentIndex < history.length - 1 ? handleNext : undefined}
-                onPrev={currentIndex > 0 ? handlePrev : undefined}
-                onBubbleUpdate={onBubbleUpdate}
-                onBubbleDelete={(bid) => onBubbleDelete(bid)}
-                onBubbleAdd={onBubbleAdd}
-                onImageUpdate={onImageUpdate}
-                onToggleStrip={() => setReadingMode('strip')}
-                onToggleCleanMode={() => setIsCleanMode(prev => !prev)}
-                isCleanMode={isCleanMode}
-                showOriginalText={currentImage?.status === 'ocr-done'}
-                onConfirmTranslate={() => void handleTranslateOnly(currentImage!.id)}
-                onCancelOcr={() => handleCancelOcr(currentImage!.id)}
-                defaultFont={targetFont}
-                globalBold={targetBold}
-                globalItalic={targetItalic}
-                globalBubbleScale={globalBubbleScale}
-                customFonts={customFonts}
-                onRetry={() => retryImage(currentImage!.id)}
-                totalPages={history.length}
-                currentPageIndex={currentIndex}
-                costLabel={!autoTranslate ? `~$${estimateCost(ocrEngine as EngineId, transEngine as EngineId, 1).toFixed(3)} estimado` : undefined}
-              />
+              useDesktopViewerFrame ? (
+                <div className="h-full min-h-0 flex flex-col bg-slate-900 rounded-lg border border-slate-700 shadow-2xl overflow-hidden">
+                  <div ref={setDesktopTopBarPortal} className="shrink-0" />
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <MangaViewer
+                      image={currentImage}
+                      onNext={currentIndex < history.length - 1 ? handleNext : undefined}
+                      onPrev={currentIndex > 0 ? handlePrev : undefined}
+                      onBubbleUpdate={onBubbleUpdate}
+                      onBubbleDelete={(bid) => onBubbleDelete(bid)}
+                      onBubbleAdd={onBubbleAdd}
+                      onImageUpdate={onImageUpdate}
+                      onToggleStrip={() => setReadingMode('strip')}
+                      onToggleCleanMode={() => setIsCleanMode(prev => !prev)}
+                      isCleanMode={isCleanMode}
+                      showOriginalText={currentImage?.status === 'ocr-done'}
+                      onConfirmTranslate={() => void handleTranslateOnly(currentImage!.id)}
+                      onCancelOcr={() => handleCancelOcr(currentImage!.id)}
+                      defaultFont={targetFont}
+                      globalBold={targetBold}
+                      globalItalic={targetItalic}
+                      globalBubbleScale={globalBubbleScale}
+                      customFonts={customFonts}
+                      onRetry={() => retryImage(currentImage!.id)}
+                      totalPages={history.length}
+                      currentPageIndex={currentIndex}
+                      costLabel={!autoTranslate ? `~$${estimateCost(ocrEngine as EngineId, transEngine as EngineId, 1).toFixed(3)} estimado` : undefined}
+                      desktopTopBarPortal={desktopTopBarPortal}
+                      statusBarPortal={statusBarPortal}
+                    />
+                  </div>
+                  <div ref={setStatusBarPortal} className="shrink-0" />
+                </div>
+              ) : (
+                <MangaViewer
+                  image={currentImage}
+                  onNext={currentIndex < history.length - 1 ? handleNext : undefined}
+                  onPrev={currentIndex > 0 ? handlePrev : undefined}
+                  onBubbleUpdate={onBubbleUpdate}
+                  onBubbleDelete={(bid) => onBubbleDelete(bid)}
+                  onBubbleAdd={onBubbleAdd}
+                  onImageUpdate={onImageUpdate}
+                  onToggleStrip={() => setReadingMode('strip')}
+                  onToggleCleanMode={() => setIsCleanMode(prev => !prev)}
+                  isCleanMode={isCleanMode}
+                  showOriginalText={currentImage?.status === 'ocr-done'}
+                  onConfirmTranslate={() => void handleTranslateOnly(currentImage!.id)}
+                  onCancelOcr={() => handleCancelOcr(currentImage!.id)}
+                  defaultFont={targetFont}
+                  globalBold={targetBold}
+                  globalItalic={targetItalic}
+                  globalBubbleScale={globalBubbleScale}
+                  customFonts={customFonts}
+                  onRetry={() => retryImage(currentImage!.id)}
+                  totalPages={history.length}
+                  currentPageIndex={currentIndex}
+                  costLabel={!autoTranslate ? `~$${estimateCost(ocrEngine as EngineId, transEngine as EngineId, 1).toFixed(3)} estimado` : undefined}
+                />
+              )
             ) : (
               /* Long Strip Mode (Scrollable List) */
               <div className="h-full overflow-y-auto bg-slate-950 scroll-smooth pb-20">
