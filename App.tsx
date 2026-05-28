@@ -16,7 +16,7 @@ import {
 import { ProcessedImage, TextBubble } from './types';
 import { DEFAULT_FONT_VALUE } from './components/MangaViewer';
 
-import Sidebar from './components/layout/Sidebar';
+import ControlsPanel from './components/layout/ControlsPanel';
 import ViewerArea from './components/layout/ViewerArea';
 import Navigator from './components/layout/Navigator';
 import DragDropOverlay from './components/layout/DragDropOverlay';
@@ -496,13 +496,7 @@ const App: React.FC = () => {
               displayedTotalTokens={displayedTotalTokens}
               onPagePicked={() => setIsSidebarOpen(false)}
             />
-            <Sidebar
-              isOpen
-              onClose={() => setIsSidebarOpen(false)}
-              embedded
-              hideHistory
-              {...sidebarProps}
-            />
+            <ControlsPanel {...sidebarProps} />
           </div>
           <ViewerArea {...viewerProps} />
         </div>
@@ -562,13 +556,7 @@ const App: React.FC = () => {
                 }
               }}
             >
-              <Sidebar
-                isOpen
-                onClose={() => {}}
-                embedded
-                hideHistory
-                {...sidebarProps}
-              />
+              <ControlsPanel {...sidebarProps} />
             </Panel>
           </Group>
         </>
