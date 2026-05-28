@@ -1,4 +1,17 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+
+import {
+  Group,
+  Panel,
+  Separator,
+  type PanelImperativeHandle,
+} from 'react-resizable-panels';
 
 import { ProcessedImage, TextBubble } from './types';
 import { DEFAULT_FONT_VALUE } from './components/MangaViewer';
@@ -7,6 +20,8 @@ import Sidebar from './components/layout/Sidebar';
 import ViewerArea from './components/layout/ViewerArea';
 import DragDropOverlay from './components/layout/DragDropOverlay';
 import SettingsModalsHost from './components/layout/SettingsModalsHost';
+import MenuBar, { type MenuItem } from './components/layout/MenuBar';
+import { useIsMobile } from './components/layout/useIsMobile';
 import type { ModalOpeners } from './components/layout/types';
 
 import { useTranslatePipeline } from './features/translator/useTranslatePipeline';
@@ -17,6 +32,11 @@ import {
   useTranslatorStore,
 } from './store';
 
+interface MenuDef {
+  label: string;
+  items: MenuItem[];
+}
+
 /**
  * Top-level shell.
  *
@@ -26,8 +46,10 @@ import {
  *  - Wires the translation pipeline hook to the rest of the layout.
  *  - Centralises window-level drag&drop and the long-press gesture for
  *    toggling clean mode.
- *  - Delegates rendering to four focused layout components: Sidebar,
- *    ViewerArea, DragDropOverlay, SettingsModalsHost.
+ *  - Picks one of two layout shells at runtime: a `react-resizable-panels`
+ *    `Group` on desktop (md+) and a drawer-style flex layout on mobile.
+ *  - Owns the desktop `MenuBar` and the global keyboard shortcuts that
+ *    drive its actions.
  *
  * Most domain state (history, translator preferences, fonts, auth keys) is
  * stored in zustand and read by the leaf components directly, so this shell
@@ -124,10 +146,10 @@ const App: React.FC = () => {
     displayedTotalTokens,
   } = useTranslatePipeline({ onAuthError });
 
-  const handleFilesSelect = async (files: File[]) => {
+  const handleFilesSelect = useCallback(async (files: File[]) => {
     const started = await pipelineFilesSelect(files);
     if (started) setIsSidebarOpen(false);
-  };
+  }, [pipelineFilesSelect]);
 
   // ------------------------------------------------------------------
   // Long-press gesture: toggle clean mode after a 600ms hold (mobile).
@@ -214,11 +236,200 @@ const App: React.FC = () => {
   };
 
   // ------------------------------------------------------------------
+  // Layout: desktop vs mobile + the resizable Navigator panel.
+  // ------------------------------------------------------------------
+  const isMobile = useIsMobile();
+  const navigatorPanelRef = useRef<PanelImperativeHandle>(null);
+  const [showNavigator, setShowNavigator] = useState(true);
+
+  // Sync `showNavigator` (state) -> Panel (imperative). The reverse
+  // direction (Panel resize/collapse driven by the user) is wired through
+  // the Panel's `onResize` callback below.
+  useEffect(() => {
+    const panel = navigatorPanelRef.current;
+    if (!panel) return;
+    if (showNavigator && panel.isCollapsed()) panel.expand();
+    else if (!showNavigator && !panel.isCollapsed()) panel.collapse();
+  }, [showNavigator]);
+
+  const toggleNavigator = useCallback(() => setShowNavigator(s => !s), []);
+
+  // ------------------------------------------------------------------
+  // File picker wired to the "Arquivo > Abrir arquivos…" menu item and
+  // the Ctrl+O shortcut. We use a hidden <input> so the picker UX is
+  // identical to the in-page Uploader.
+  // ------------------------------------------------------------------
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const triggerFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const onFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length > 0) void handleFilesSelect(files);
+    // Reset so picking the same file again still triggers a change event.
+    e.target.value = '';
+  }, [handleFilesSelect]);
+
+  // ------------------------------------------------------------------
+  // "Limpar sessão" / Ctrl+Shift+N
+  // ------------------------------------------------------------------
+  const handleClearSession = useCallback(() => {
+    if (window.confirm(
+      'Limpar todas as paginas da sessao atual? Isso nao apaga itens da Biblioteca.'
+    )) {
+      replaceSessionHistory([]);
+    }
+  }, [replaceSessionHistory]);
+
+  // ------------------------------------------------------------------
+  // MenuBar definition
+  //
+  // Items with `onSelect: undefined` render as visible-but-disabled — we
+  // show them so users see what's coming in upcoming PRs (URL load,
+  // export, undo/redo, shortcuts overlay, About).
+  // ------------------------------------------------------------------
+  const menus: MenuDef[] = useMemo(() => [
+    {
+      label: 'Arquivo',
+      items: [
+        { label: 'Abrir arquivos\u2026', shortcut: 'Ctrl+O', onSelect: triggerFilePicker },
+        { label: 'Carregar URL\u2026', shortcut: 'Ctrl+U', onSelect: undefined },
+        { label: 'Exportar pagina\u2026', shortcut: 'Ctrl+E', onSelect: undefined },
+        { type: 'separator' },
+        { label: 'Limpar sessao', shortcut: 'Ctrl+Shift+N', onSelect: handleClearSession },
+      ],
+    },
+    {
+      label: 'Editar',
+      items: [
+        { label: 'Desfazer', shortcut: 'Ctrl+Z', onSelect: undefined },
+        { label: 'Refazer', shortcut: 'Ctrl+Shift+Z', onSelect: undefined },
+        { type: 'separator' },
+        { label: 'Configuracoes\u2026', shortcut: 'Ctrl+,', onSelect: () => setShowSettingsPanel(true) },
+      ],
+    },
+    {
+      label: 'Ver',
+      items: [
+        { label: 'Mostrar Navigator', shortcut: 'Ctrl+B', onSelect: toggleNavigator, checked: showNavigator },
+        { label: 'Modo limpo', shortcut: 'F11', onSelect: () => setIsCleanMode(p => !p), checked: isCleanMode },
+        { type: 'separator' },
+        { label: 'Atalhos de teclado', shortcut: '?', onSelect: undefined },
+      ],
+    },
+    {
+      label: 'Traduzir',
+      items: [
+        { label: 'Traduzir todas pendentes', shortcut: 'Ctrl+Shift+T', onSelect: () => void handleTranslateAll() },
+        { type: 'separator' },
+        { label: 'Modo Pagina unica', onSelect: () => setReadingMode('single'), checked: readingMode === 'single' },
+        { label: 'Modo Strip continuo', onSelect: () => setReadingMode('strip'), checked: readingMode === 'strip' },
+      ],
+    },
+    {
+      label: 'Ajuda',
+      items: [
+        { label: 'Tutorial', onSelect: () => {
+          localStorage.removeItem('mangalens-onboarding-done');
+          setShowOnboarding(true);
+        } },
+        { type: 'separator' },
+        { label: 'Sobre o MangaLens', onSelect: undefined },
+      ],
+    },
+  ], [
+    showNavigator,
+    isCleanMode,
+    readingMode,
+    triggerFilePicker,
+    handleClearSession,
+    toggleNavigator,
+    handleTranslateAll,
+  ]);
+
+  // ------------------------------------------------------------------
+  // Global keyboard shortcuts. They mirror the menu and work even when
+  // the menu isn't open. We bail out when focus is on an editable element
+  // so typing in inputs / contenteditable bubbles isn't hijacked.
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (
+        target.isContentEditable ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+      )) {
+        return;
+      }
+      const ctrl = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+
+      if (ctrl && !e.shiftKey && e.key === ',') {
+        e.preventDefault();
+        setShowSettingsPanel(true);
+      } else if (ctrl && !e.shiftKey && key === 'b') {
+        e.preventDefault();
+        toggleNavigator();
+      } else if (ctrl && !e.shiftKey && key === 'o') {
+        e.preventDefault();
+        triggerFilePicker();
+      } else if (ctrl && e.shiftKey && key === 't') {
+        e.preventDefault();
+        void handleTranslateAll();
+      } else if (ctrl && e.shiftKey && key === 'n') {
+        e.preventDefault();
+        handleClearSession();
+      } else if (e.key === 'F11') {
+        e.preventDefault();
+        setIsCleanMode(p => !p);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [
+    toggleNavigator,
+    triggerFilePicker,
+    handleTranslateAll,
+    handleClearSession,
+  ]);
+
+  // ------------------------------------------------------------------
   // Render
   // ------------------------------------------------------------------
+  const sidebarProps = {
+    handleTranslateAll,
+    handleTranslateImage,
+    handleTranslateOnly,
+    handleCancelOcr,
+    retryImage,
+    totalCost,
+    displayedTotalTokens,
+    modalOpeners,
+  };
+
+  const viewerProps = {
+    onOpenSidebar: () => setIsSidebarOpen(true),
+    readingMode,
+    setReadingMode,
+    isCleanMode,
+    setIsCleanMode,
+    longPressTriggered,
+    handleFilesSelect,
+    handleTranslateOnly,
+    handleCancelOcr,
+    retryImage,
+    onBubbleUpdate: handleBubbleUpdate,
+    onBubbleDelete: handleBubbleDelete,
+    onBubbleAdd: handleBubbleAdd,
+    onImageUpdate: handleImageUpdate,
+    onStripBubbleUpdate: handleStripBubbleUpdate,
+  };
+
   return (
     <div
-      className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden relative"
+      className="flex h-screen flex-col bg-slate-950 text-slate-100 overflow-hidden relative"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
@@ -227,49 +438,79 @@ const App: React.FC = () => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Hidden file input wired to the "Abrir arquivos…" menu item / Ctrl+O */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={onFileInputChange}
+        multiple
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* Global Drag & Drop Overlay */}
       {isDragOverWindow && <DragDropOverlay />}
 
-      {/* Mobile Sidebar Overlay */}
-      {isSidebarOpen && (
+      {/* Mobile Sidebar Overlay (drawer backdrop) */}
+      {isMobile && isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/80 z-40 md:hidden backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-black/80 z-40 backdrop-blur-sm transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar (drawer on mobile, fixed column on desktop) */}
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        handleTranslateAll={handleTranslateAll}
-        handleTranslateImage={handleTranslateImage}
-        handleTranslateOnly={handleTranslateOnly}
-        handleCancelOcr={handleCancelOcr}
-        retryImage={retryImage}
-        totalCost={totalCost}
-        displayedTotalTokens={displayedTotalTokens}
-        modalOpeners={modalOpeners}
-      />
-
-      {/* Main viewer area */}
-      <ViewerArea
-        onOpenSidebar={() => setIsSidebarOpen(true)}
-        readingMode={readingMode}
-        setReadingMode={setReadingMode}
-        isCleanMode={isCleanMode}
-        setIsCleanMode={setIsCleanMode}
-        longPressTriggered={longPressTriggered}
-        handleFilesSelect={handleFilesSelect}
-        handleTranslateOnly={handleTranslateOnly}
-        handleCancelOcr={handleCancelOcr}
-        retryImage={retryImage}
-        onBubbleUpdate={handleBubbleUpdate}
-        onBubbleDelete={handleBubbleDelete}
-        onBubbleAdd={handleBubbleAdd}
-        onImageUpdate={handleImageUpdate}
-        onStripBubbleUpdate={handleStripBubbleUpdate}
-      />
+      {isMobile ? (
+        // Mobile: keep the original drawer + flex layout. No MenuBar.
+        <div className="flex flex-1 min-h-0">
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            {...sidebarProps}
+          />
+          <ViewerArea {...viewerProps} />
+        </div>
+      ) : (
+        // Desktop: MenuBar + resizable horizontal Group (Sidebar | Viewer).
+        // The third panel (ControlsPanel) lands in PR #7.
+        <>
+          <MenuBar menus={menus} />
+          <Group
+            orientation="horizontal"
+            id="mangalens-shell-v1"
+            className="flex flex-1 min-h-0"
+          >
+            <Panel
+              panelRef={navigatorPanelRef}
+              id="left"
+              defaultSize={22}
+              minSize={15}
+              maxSize={40}
+              collapsible
+              collapsedSize={0}
+              onResize={(size) => {
+                // Mirror collapse-by-drag back into our React state so the
+                // MenuBar checkmark and Ctrl+B stay in sync.
+                if (size.asPercentage === 0 && showNavigator) {
+                  setShowNavigator(false);
+                } else if (size.asPercentage > 0 && !showNavigator) {
+                  setShowNavigator(true);
+                }
+              }}
+            >
+              <Sidebar
+                isOpen
+                onClose={() => {}}
+                embedded
+                {...sidebarProps}
+              />
+            </Panel>
+            <Separator className="w-px bg-slate-800 transition-colors data-[hover]:bg-indigo-500 hover:bg-indigo-500" />
+            <Panel id="center" minSize={40}>
+              <ViewerArea {...viewerProps} />
+            </Panel>
+          </Group>
+        </>
+      )}
 
       {/* Modals + Library + Toast + Onboarding */}
       <SettingsModalsHost
