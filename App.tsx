@@ -506,21 +506,21 @@ const App: React.FC = () => {
           <MenuBar menus={menus} />
           <Group
             orientation="horizontal"
-            id="mangalens-shell-v2"
+            id="mangalens-shell-v3"
             className="flex flex-1 min-h-0"
           >
             <Panel
               panelRef={navigatorPanelRef}
               id="left"
               defaultSize={16}
-              minSize={12}
-              maxSize={28}
+              minSize={5}
               collapsible
               collapsedSize={0}
+              className="overflow-hidden"
               onResize={(size) => {
-                if (size.asPercentage === 0 && showNavigator) {
+                if (size === 0 && showNavigator) {
                   setShowNavigator(false);
-                } else if (size.asPercentage > 0 && !showNavigator) {
+                } else if (size > 0 && !showNavigator) {
                   setShowNavigator(true);
                 }
               }}
@@ -544,14 +544,14 @@ const App: React.FC = () => {
               panelRef={controlsPanelRef}
               id="right"
               defaultSize={24}
-              minSize={18}
-              maxSize={38}
+              minSize={5}
               collapsible
               collapsedSize={0}
+              className="overflow-hidden"
               onResize={(size) => {
-                if (size.asPercentage === 0 && showControls) {
+                if (size === 0 && showControls) {
                   setShowControls(false);
-                } else if (size.asPercentage > 0 && !showControls) {
+                } else if (size > 0 && !showControls) {
                   setShowControls(true);
                 }
               }}
