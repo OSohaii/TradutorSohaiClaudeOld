@@ -58,6 +58,15 @@ interface SidebarProps {
    */
   embedded?: boolean;
 
+  /**
+   * When true, the sidebar hides the header (logo/version/tokens) and the
+   * history list, rendering **only** the footer controls (engine selectors,
+   * language selectors, font/style, bubble scale, toggles, library button,
+   * settings grid). Used in the 3-panel desktop layout where the Navigator
+   * owns the history list and this panel is the "Controls" panel on the right.
+   */
+  hideHistory?: boolean;
+
   /** Translation pipeline handlers (owned by App via useTranslatePipeline). */
   handleTranslateAll: () => Promise<void> | void;
   handleTranslateImage: (id: string) => Promise<void> | void;
@@ -88,6 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
   embedded = false,
+  hideHistory = false,
   handleTranslateAll,
   handleTranslateImage,
   handleTranslateOnly,
@@ -188,12 +198,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   // `sidebarCollapsed` we let every downstream JSX block stay unchanged.
   const sidebarCollapsed = embedded ? false : sidebarCollapsedRaw;
   const asideClass = embedded
-    ? 'h-full w-full bg-slate-900 border-r border-slate-800 flex flex-col'
+    ? `h-full w-full bg-slate-900 ${hideHistory ? 'border-l' : 'border-r'} border-slate-800 flex flex-col`
     : `fixed md:relative z-50 h-full w-[85vw] ${sidebarCollapsed ? 'md:w-16' : 'md:w-80'} bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`;
 
   return (
     <aside className={asideClass}>
-      {/* Sidebar Header */}
+      {/* Sidebar Header — hidden when hideHistory is true (Navigator owns branding) */}
+      {!hideHistory && (
       <div className="p-4 border-b border-slate-800 flex items-center justify-between">
         <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'md:justify-center md:w-full' : ''}`}>
           <div className="bg-gradient-to-tr from-indigo-600 to-violet-600 p-2 rounded-xl shadow-lg shadow-indigo-500/20">
@@ -238,8 +249,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
       </div>
+      )}
 
-      {/* History List */}
+      {/* History List — hidden when hideHistory is true (Navigator owns the list) */}
+      {!hideHistory && (
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {history.length === 0 ? (
           <div className={`flex flex-col items-center justify-center h-40 text-slate-600 space-y-2 ${sidebarCollapsed ? 'md:px-1' : ''}`}>
@@ -378,9 +391,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           </>
         )}
       </div>
+      )}
 
       {/* Sidebar Footer Controls */}
-      <div className={`p-4 bg-slate-900 border-t border-slate-800 space-y-4 ${sidebarCollapsed ? 'md:p-2 md:space-y-2' : ''}`}>
+      <div className={`${hideHistory ? 'flex-1 overflow-y-auto' : ''} p-4 bg-slate-900 ${!hideHistory ? 'border-t' : ''} border-slate-800 space-y-4 ${sidebarCollapsed ? 'md:p-2 md:space-y-2' : ''}`}>
         {/* OCR & Translation Selectors */}
         <div className={`space-y-3 ${sidebarCollapsed ? 'md:hidden' : ''}`}>
           <div className="flex justify-between items-center text-xs">
