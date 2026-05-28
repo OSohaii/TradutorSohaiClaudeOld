@@ -18,6 +18,7 @@ import { DEFAULT_FONT_VALUE } from './components/MangaViewer';
 
 import Sidebar from './components/layout/Sidebar';
 import ViewerArea from './components/layout/ViewerArea';
+import Navigator from './components/layout/Navigator';
 import DragDropOverlay from './components/layout/DragDropOverlay';
 import SettingsModalsHost from './components/layout/SettingsModalsHost';
 import MenuBar, { type MenuItem } from './components/layout/MenuBar';
@@ -242,6 +243,9 @@ const App: React.FC = () => {
   const navigatorPanelRef = useRef<PanelImperativeHandle>(null);
   const [showNavigator, setShowNavigator] = useState(true);
 
+  const controlsPanelRef = useRef<PanelImperativeHandle>(null);
+  const [showControls, setShowControls] = useState(true);
+
   // Sync `showNavigator` (state) -> Panel (imperative). The reverse
   // direction (Panel resize/collapse driven by the user) is wired through
   // the Panel's `onResize` callback below.
@@ -253,6 +257,16 @@ const App: React.FC = () => {
   }, [showNavigator]);
 
   const toggleNavigator = useCallback(() => setShowNavigator(s => !s), []);
+
+  // Sync `showControls` (state) -> Panel (imperative).
+  useEffect(() => {
+    const panel = controlsPanelRef.current;
+    if (!panel) return;
+    if (showControls && panel.isCollapsed()) panel.expand();
+    else if (!showControls && !panel.isCollapsed()) panel.collapse();
+  }, [showControls]);
+
+  const toggleControls = useCallback(() => setShowControls(s => !s), []);
 
   // ------------------------------------------------------------------
   // File picker wired to the "Arquivo > Abrir arquivos…" menu item and
@@ -314,6 +328,7 @@ const App: React.FC = () => {
       label: 'Ver',
       items: [
         { label: 'Mostrar Navigator', shortcut: 'Ctrl+B', onSelect: toggleNavigator, checked: showNavigator },
+        { label: 'Mostrar Controles', shortcut: 'Ctrl+J', onSelect: toggleControls, checked: showControls },
         { label: 'Modo limpo', shortcut: 'F11', onSelect: () => setIsCleanMode(p => !p), checked: isCleanMode },
         { type: 'separator' },
         { label: 'Atalhos de teclado', shortcut: '?', onSelect: undefined },
@@ -341,11 +356,13 @@ const App: React.FC = () => {
     },
   ], [
     showNavigator,
+    showControls,
     isCleanMode,
     readingMode,
     triggerFilePicker,
     handleClearSession,
     toggleNavigator,
+    toggleControls,
     handleTranslateAll,
   ]);
 
@@ -372,6 +389,9 @@ const App: React.FC = () => {
       } else if (ctrl && !e.shiftKey && key === 'b') {
         e.preventDefault();
         toggleNavigator();
+      } else if (ctrl && !e.shiftKey && key === 'j') {
+        e.preventDefault();
+        toggleControls();
       } else if (ctrl && !e.shiftKey && key === 'o') {
         e.preventDefault();
         triggerFilePicker();
@@ -390,6 +410,7 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [
     toggleNavigator,
+    toggleControls,
     triggerFilePicker,
     handleTranslateAll,
     handleClearSession,
@@ -462,34 +483,47 @@ const App: React.FC = () => {
       {isMobile ? (
         // Mobile: keep the original drawer + flex layout. No MenuBar.
         <div className="flex flex-1 min-h-0">
-          <Sidebar
-            isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
-            {...sidebarProps}
-          />
+          <div
+            className={`fixed z-50 h-full w-[85vw] bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col transition-all duration-300 ease-in-out overflow-y-auto ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          >
+            <Navigator
+              handleTranslateAll={handleTranslateAll}
+              handleTranslateImage={handleTranslateImage}
+              handleTranslateOnly={handleTranslateOnly}
+              handleCancelOcr={handleCancelOcr}
+              retryImage={retryImage}
+              totalCost={totalCost}
+              displayedTotalTokens={displayedTotalTokens}
+              onPagePicked={() => setIsSidebarOpen(false)}
+            />
+            <Sidebar
+              isOpen
+              onClose={() => setIsSidebarOpen(false)}
+              embedded
+              hideHistory
+              {...sidebarProps}
+            />
+          </div>
           <ViewerArea {...viewerProps} />
         </div>
       ) : (
-        // Desktop: MenuBar + resizable horizontal Group (Sidebar | Viewer).
-        // The third panel (ControlsPanel) lands in PR #7.
+        // Desktop: MenuBar + resizable 3-panel layout (Navigator | Viewer | Controls).
         <>
           <MenuBar menus={menus} />
           <Group
             orientation="horizontal"
-            id="mangalens-shell-v1"
+            id="mangalens-shell-v2"
             className="flex flex-1 min-h-0"
           >
             <Panel
               panelRef={navigatorPanelRef}
               id="left"
-              defaultSize={22}
-              minSize={15}
-              maxSize={40}
+              defaultSize={16}
+              minSize={12}
+              maxSize={28}
               collapsible
               collapsedSize={0}
               onResize={(size) => {
-                // Mirror collapse-by-drag back into our React state so the
-                // MenuBar checkmark and Ctrl+B stay in sync.
                 if (size.asPercentage === 0 && showNavigator) {
                   setShowNavigator(false);
                 } else if (size.asPercentage > 0 && !showNavigator) {
@@ -497,16 +531,44 @@ const App: React.FC = () => {
                 }
               }}
             >
+              <Navigator
+                handleTranslateAll={handleTranslateAll}
+                handleTranslateImage={handleTranslateImage}
+                handleTranslateOnly={handleTranslateOnly}
+                handleCancelOcr={handleCancelOcr}
+                retryImage={retryImage}
+                totalCost={totalCost}
+                displayedTotalTokens={displayedTotalTokens}
+              />
+            </Panel>
+            <Separator className="w-px bg-slate-800 transition-colors data-[hover]:bg-indigo-500 hover:bg-indigo-500" />
+            <Panel id="center" minSize={35}>
+              <ViewerArea {...viewerProps} />
+            </Panel>
+            <Separator className="w-px bg-slate-800 transition-colors data-[hover]:bg-indigo-500 hover:bg-indigo-500" />
+            <Panel
+              panelRef={controlsPanelRef}
+              id="right"
+              defaultSize={24}
+              minSize={18}
+              maxSize={38}
+              collapsible
+              collapsedSize={0}
+              onResize={(size) => {
+                if (size.asPercentage === 0 && showControls) {
+                  setShowControls(false);
+                } else if (size.asPercentage > 0 && !showControls) {
+                  setShowControls(true);
+                }
+              }}
+            >
               <Sidebar
                 isOpen
                 onClose={() => {}}
                 embedded
+                hideHistory
                 {...sidebarProps}
               />
-            </Panel>
-            <Separator className="w-px bg-slate-800 transition-colors data-[hover]:bg-indigo-500 hover:bg-indigo-500" />
-            <Panel id="center" minSize={40}>
-              <ViewerArea {...viewerProps} />
             </Panel>
           </Group>
         </>

@@ -1,7 +1,7 @@
 {
   "name": "sohai-tradutor",
   "private": true,
-  "version": "0.1.10-alpha",
+  "version": "0.1.11-alpha",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,7 @@
   "dependencies": {
     "@google/genai": "^1.33.0",
     "@heroicons/react": "^2.2.0",
+    "@tanstack/react-virtual": "^3.13.26",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-resizable-panels": "^4.11.2",
