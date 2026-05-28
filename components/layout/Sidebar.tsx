@@ -64,6 +64,10 @@ interface SidebarProps {
    * language selectors, font/style, bubble scale, toggles, library button,
    * settings grid). Used in the 3-panel desktop layout where the Navigator
    * owns the history list and this panel is the "Controls" panel on the right.
+   *
+   * @deprecated Since v0.1.12-alpha the right panel uses `ControlsPanel`
+   * (with tabs). This prop is kept for backward compatibility on the mobile
+   * drawer until a future PR migrates that layout too.
    */
   hideHistory?: boolean;
 
