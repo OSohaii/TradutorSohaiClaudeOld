@@ -4,6 +4,8 @@ import { ProcessedImage, ViewMode, TextBubble } from '../types';
 import BubbleOverlay from './BubbleOverlay';
 import ViewerToolbar from './ViewerToolbar';
 import ComparisonSlider from './ComparisonSlider';
+import DesktopTopBar from './layout/DesktopTopBar';
+import StatusBar from './layout/StatusBar';
 import ShortcutsOverlay from './ui/ShortcutsOverlay';
 import { useSessionStore } from '../store';
 import { useViewerShortcuts } from '../features/viewer/useViewerShortcuts';
@@ -11,21 +13,8 @@ import { useSwipeNavigation } from '../features/viewer/useSwipeNavigation';
 import { usePinchZoom } from '../features/viewer/usePinchZoom';
 import { downloadCanvas } from '../features/viewer/downloadCanvas';
 import { 
-  MagnifyingGlassPlusIcon, 
-  MagnifyingGlassMinusIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  PencilSquareIcon,
-  PaintBrushIcon,
-  SquaresPlusIcon,
-  StopIcon,
-  CubeTransparentIcon,
-  ArrowDownTrayIcon,
   ExclamationTriangleIcon,
-  ChatBubbleLeftRightIcon,
-  ArrowsRightLeftIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 
 interface MangaViewerProps {
@@ -496,76 +485,30 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
     <div className={`flex flex-col h-full ${stripMode ? '' : 'bg-slate-900 rounded-lg border border-slate-700 shadow-2xl overflow-hidden'} relative`}>
       
       {!stripMode && !isCleanMode && (
-        <div className="h-14 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-3 md:px-4 sticky top-0 z-50">
-          <div className="flex items-center space-x-2">
-             <button onClick={onPrev} disabled={!onPrev} className={`p-1.5 rounded-lg transition-colors ${onPrev ? 'text-white hover:bg-slate-700' : 'text-slate-600'}`}>
-               <ChevronLeftIcon className="w-5 h-5" />
-             </button>
-             <button onClick={onNext} disabled={!onNext} className={`p-1.5 rounded-lg transition-colors ${onNext ? 'text-white hover:bg-slate-700' : 'text-slate-600'}`}>
-               <ChevronRightIcon className="w-5 h-5" />
-             </button>
-             <div className="h-6 w-px bg-slate-600 mx-1 hidden sm:block"></div>
-             <span className={`text-[10px] sm:text-xs font-mono px-2 py-0.5 rounded ${image.status === 'done' ? 'bg-green-500/10 text-green-400' : image.status === 'ocr-done' ? 'bg-amber-500/10 text-amber-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
-                {image.status === 'done' ? (isFullServerResult ? 'IMG' : 'OCR') : image.status === 'ocr-done' ? 'REVISAO' : '...'}
-             </span>
-          </div>
-
-          <div className="flex items-center gap-1 md:gap-2">
-            {(image.status === 'done' || isOcrDone) && hasOverlays && (
-              <>
-                <button onClick={handleDownload} className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg" title="Baixar Página Traduzida">
-                  <ArrowDownTrayIcon className="w-5 h-5" />
-                </button>
-                {image.status === 'done' && (
-                  <button onClick={() => setShowComparison(true)} className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg" title="Comparar Original/Traduzido">
-                    <ArrowsRightLeftIcon className="w-5 h-5" />
-                  </button>
-                )}
-                <div className="h-6 w-px bg-slate-700 mx-1"></div>
-                <button onClick={() => { setIsPaintMode(!isPaintMode); setIsEditingMode(false); setIsAddingBubble(false); }} className={`p-2 rounded-lg ${isPaintMode ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`} title="Pintar (Whiteout)">
-                  <PaintBrushIcon className="w-5 h-5" />
-                </button>
-                <button onClick={() => { setIsEditingMode(!isEditingMode); setIsPaintMode(false); setIsAddingBubble(false); }} className={`p-2 rounded-lg ${isEditingMode ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`} title="Manipulação Direta">
-                  <PencilSquareIcon className="w-5 h-5" />
-                </button>
-                <button 
-                  onClick={() => { setIsAddingBubble(!isAddingBubble); setIsPaintMode(false); setIsEditingMode(false); }} 
-                  className={`p-2 rounded-lg ${isAddingBubble ? 'bg-green-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`} 
-                  title="Adicionar Balão (clique na imagem)"
-                >
-                  <SquaresPlusIcon className="w-5 h-5" />
-                </button>
-                
-                <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50">
-                  <button onClick={() => setHideBubbleBorders(!hideBubbleBorders)} className={`p-1.5 rounded-md ${hideBubbleBorders ? 'text-indigo-400 bg-slate-800' : 'text-slate-400 hover:text-white'}`} title="Ocultar Bordas">
-                    <StopIcon className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setIsBubbleTransparent(!isBubbleTransparent)} className={`p-1.5 rounded-md ${isBubbleTransparent ? 'text-indigo-400 bg-slate-800' : 'text-slate-400 hover:text-white'}`} title="Fundo Transparente">
-                    <CubeTransparentIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Comparison button for full server results (no overlays) */}
-            {image.status === 'done' && isFullServerResult && (
-              <button onClick={() => setShowComparison(true)} className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg" title="Comparar Original/Traduzido">
-                <ArrowsRightLeftIcon className="w-5 h-5" />
-              </button>
-            )}
-            
-            <div className="h-6 w-px bg-slate-600 mx-1 hidden sm:block"></div>
-
-            <button onClick={() => setViewMode(prev => prev === ViewMode.TRANSLATED ? ViewMode.ORIGINAL : ViewMode.TRANSLATED)} className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
-               {viewMode === ViewMode.TRANSLATED ? <EyeIcon className="w-5 h-5"/> : <EyeSlashIcon className="w-5 h-5"/>}
-            </button>
-            
-            <div className="flex items-center hidden md:flex">
-              <button onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className="p-2 text-slate-300 hover:bg-slate-700 rounded-lg"><MagnifyingGlassMinusIcon className="w-4 h-4" /></button>
-              <button onClick={() => setZoom(z => Math.min(4, z + 0.25))} className="p-2 text-slate-300 hover:bg-slate-700 rounded-lg"><MagnifyingGlassPlusIcon className="w-4 h-4" /></button>
-            </div>
-          </div>
-        </div>
+        <DesktopTopBar
+          onPrev={onPrev}
+          onNext={onNext}
+          imageStatus={image.status}
+          isFullServerResult={isFullServerResult}
+          hasOverlays={hasOverlays}
+          isOcrDone={isOcrDone}
+          handleDownload={handleDownload}
+          setShowComparison={setShowComparison}
+          isPaintMode={isPaintMode}
+          setIsPaintMode={setIsPaintMode}
+          isEditingMode={isEditingMode}
+          setIsEditingMode={setIsEditingMode}
+          isAddingBubble={isAddingBubble}
+          setIsAddingBubble={setIsAddingBubble}
+          hideBubbleBorders={hideBubbleBorders}
+          setHideBubbleBorders={setHideBubbleBorders}
+          isBubbleTransparent={isBubbleTransparent}
+          setIsBubbleTransparent={setIsBubbleTransparent}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          onConfirmTranslate={onConfirmTranslate}
+          onCancelOcr={onCancelOcr}
+        />
       )}
 
       <div 
@@ -679,37 +622,6 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
         </div>
       </div>
 
-      {/* OCR Review Banner */}
-      {isOcrDone && !stripMode && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-amber-600/90 backdrop-blur text-white text-sm px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-          <EyeIcon className="w-4 h-4" />
-          Revisao OCR - Ajuste os baloes detectados
-        </div>
-      )}
-
-      {/* OCR Review Action Buttons */}
-      {isOcrDone && !stripMode && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3">
-          {onConfirmTranslate && (
-            <button
-              onClick={onConfirmTranslate}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-lg transition-colors flex items-center gap-2"
-            >
-              <ChatBubbleLeftRightIcon className="w-4 h-4" />
-              Confirmar e Traduzir
-            </button>
-          )}
-          {onCancelOcr && (
-            <button
-              onClick={onCancelOcr}
-              className="px-4 py-2 bg-red-600/80 hover:bg-red-700 text-white text-sm font-medium rounded-lg shadow-lg transition-colors"
-            >
-              Cancelar
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Floating Unified Toolbar */}
       {activeBubble && (
         <ViewerToolbar
@@ -796,6 +708,17 @@ const MangaViewer: React.FC<MangaViewerProps> = ({
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-40 text-xs text-slate-300 bg-slate-800/80 backdrop-blur px-2 py-1 rounded">
           {costLabel}
         </div>
+      )}
+
+      {/* StatusBar */}
+      {!stripMode && !isCleanMode && (
+        <StatusBar
+          zoom={zoom}
+          setZoom={setZoom}
+          imageWidth={imgRef.current?.naturalWidth}
+          imageHeight={imgRef.current?.naturalHeight}
+          bubbleCount={image.bubbles.length}
+        />
       )}
     </div>
   );

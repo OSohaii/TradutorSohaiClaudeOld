@@ -97,25 +97,20 @@ const App: React.FC = () => {
 
   // Settings / utility modals. Visibility lives here because the pipeline's
   // `onAuthError` callback needs to flip the flags too.
-  const [showIchigoSettings, setShowIchigoSettings] = useState(false);
-  const [showToriiSettings, setShowToriiSettings] = useState(false);
-  const [showDeepLSettings, setShowDeepLSettings] = useState(false);
-  const [showGeminiSettings, setShowGeminiSettings] = useState(false);
-  const [showOpenAISettings, setShowOpenAISettings] = useState(false);
-  const [showFontSettings, setShowFontSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'geral' | 'ichigo' | 'torii' | 'apis' | 'fontes'>('geral');
   const [showLibrary, setShowLibrary] = useState(false);
-  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const modalOpeners: ModalOpeners = {
-    ichigo: () => setShowIchigoSettings(true),
-    torii: () => setShowToriiSettings(true),
-    deepl: () => setShowDeepLSettings(true),
-    gemini: () => setShowGeminiSettings(true),
-    openai: () => setShowOpenAISettings(true),
-    fonts: () => setShowFontSettings(true),
+    ichigo: () => { setSettingsTab('ichigo'); setShowSettings(true); },
+    torii: () => { setSettingsTab('torii'); setShowSettings(true); },
+    deepl: () => { setSettingsTab('apis'); setShowSettings(true); },
+    gemini: () => { setSettingsTab('apis'); setShowSettings(true); },
+    openai: () => { setSettingsTab('apis'); setShowSettings(true); },
+    fonts: () => { setSettingsTab('fontes'); setShowSettings(true); },
     library: () => setShowLibrary(true),
-    settings: () => setShowSettingsPanel(true),
+    settings: () => { setSettingsTab('geral'); setShowSettings(true); },
     onboarding: () => {
       // Reset the onboarding-done flag so the modal re-runs the full tour.
       localStorage.removeItem('mangalens-onboarding-done');
@@ -128,11 +123,11 @@ const App: React.FC = () => {
   // ------------------------------------------------------------------
   const onAuthError = useCallback((modal: 'ichigo' | 'torii' | 'deepl' | 'gemini' | 'openai') => {
     switch (modal) {
-      case 'ichigo': setShowIchigoSettings(true); break;
-      case 'torii': setShowToriiSettings(true); break;
-      case 'deepl': setShowDeepLSettings(true); break;
-      case 'gemini': setShowGeminiSettings(true); break;
-      case 'openai': setShowOpenAISettings(true); break;
+      case 'ichigo': setSettingsTab('ichigo'); setShowSettings(true); break;
+      case 'torii': setSettingsTab('torii'); setShowSettings(true); break;
+      case 'deepl': setSettingsTab('apis'); setShowSettings(true); break;
+      case 'gemini': setSettingsTab('apis'); setShowSettings(true); break;
+      case 'openai': setSettingsTab('apis'); setShowSettings(true); break;
     }
   }, []);
 
@@ -321,7 +316,7 @@ const App: React.FC = () => {
         { label: 'Desfazer', shortcut: 'Ctrl+Z', onSelect: undefined },
         { label: 'Refazer', shortcut: 'Ctrl+Shift+Z', onSelect: undefined },
         { type: 'separator' },
-        { label: 'Configuracoes\u2026', shortcut: 'Ctrl+,', onSelect: () => setShowSettingsPanel(true) },
+        { label: 'Configuracoes\u2026', shortcut: 'Ctrl+,', onSelect: () => setShowSettings(true) },
       ],
     },
     {
@@ -385,7 +380,7 @@ const App: React.FC = () => {
 
       if (ctrl && !e.shiftKey && e.key === ',') {
         e.preventDefault();
-        setShowSettingsPanel(true);
+        setShowSettings(true);
       } else if (ctrl && !e.shiftKey && key === 'b') {
         e.preventDefault();
         toggleNavigator();
@@ -518,9 +513,10 @@ const App: React.FC = () => {
               collapsedSize={0}
               className="overflow-hidden"
               onResize={(size) => {
-                if (size === 0 && showNavigator) {
+                const numSize = typeof size === 'number' ? size : 0;
+                if (numSize === 0 && showNavigator) {
                   setShowNavigator(false);
-                } else if (size > 0 && !showNavigator) {
+                } else if (numSize > 0 && !showNavigator) {
                   setShowNavigator(true);
                 }
               }}
@@ -549,9 +545,10 @@ const App: React.FC = () => {
               collapsedSize={0}
               className="overflow-hidden"
               onResize={(size) => {
-                if (size === 0 && showControls) {
+                const numSize = typeof size === 'number' ? size : 0;
+                if (numSize === 0 && showControls) {
                   setShowControls(false);
-                } else if (size > 0 && !showControls) {
+                } else if (numSize > 0 && !showControls) {
                   setShowControls(true);
                 }
               }}
@@ -565,27 +562,15 @@ const App: React.FC = () => {
       {/* Modals + Library + Toast + Onboarding */}
       <SettingsModalsHost
         show={{
-          ichigo: showIchigoSettings,
-          torii: showToriiSettings,
-          deepl: showDeepLSettings,
-          gemini: showGeminiSettings,
-          openai: showOpenAISettings,
-          fonts: showFontSettings,
-          settings: showSettingsPanel,
+          settings: showSettings,
+          settingsTab,
           library: showLibrary,
           onboarding: showOnboarding,
         }}
         handlers={{
-          closeIchigo: () => setShowIchigoSettings(false),
-          closeTorii: () => setShowToriiSettings(false),
-          closeDeepL: () => setShowDeepLSettings(false),
-          closeGemini: () => setShowGeminiSettings(false),
-          closeOpenAI: () => setShowOpenAISettings(false),
-          closeFonts: () => setShowFontSettings(false),
-          closeSettings: () => setShowSettingsPanel(false),
+          closeSettings: () => setShowSettings(false),
           closeLibrary: () => setShowLibrary(false),
           closeOnboarding: () => setShowOnboarding(false),
-          openIchigoFromSettings: () => setShowIchigoSettings(true),
           onLoadFromLibrary: handleLoadFromLibrary,
         }}
       />
