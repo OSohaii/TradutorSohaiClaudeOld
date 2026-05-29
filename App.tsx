@@ -24,6 +24,15 @@ import SettingsModalsHost from './components/layout/SettingsModalsHost';
 import MenuBar, { type MenuItem } from './components/layout/MenuBar';
 import { useIsMobile } from './components/layout/useIsMobile';
 import type { ModalOpeners } from './components/layout/types';
+import {
+  WrenchScrewdriverIcon,
+  XMarkIcon,
+  BookOpenIcon,
+  Cog8ToothIcon,
+  QuestionMarkCircleIcon,
+  ChevronRightIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
 
 import { useTranslatePipeline } from './features/translator/useTranslatePipeline';
 import {
@@ -91,6 +100,8 @@ const App: React.FC = () => {
   // UI state (sidebar, viewer mode, modals)
   // ------------------------------------------------------------------
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [mobileLeftTab, setMobileLeftTab] = useState<'pages' | 'controls'>('pages');
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [readingMode, setReadingMode] = useState<'single' | 'strip'>('single');
   const [isCleanMode, setIsCleanMode] = useState(false);
   const [longPressTriggered, setLongPressTriggered] = useState(false);
@@ -427,6 +438,7 @@ const App: React.FC = () => {
 
   const viewerProps = {
     onOpenSidebar: () => setIsSidebarOpen(true),
+    onOpenRightSidebar: () => setIsRightSidebarOpen(true),
     readingMode,
     setReadingMode,
     isCleanMode,
@@ -467,32 +479,209 @@ const App: React.FC = () => {
       {/* Global Drag & Drop Overlay */}
       {isDragOverWindow && <DragDropOverlay />}
 
-      {/* Mobile Sidebar Overlay (drawer backdrop) */}
+      {/* Mobile Sidebar Overlays (drawer backdrops) */}
       {isMobile && isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/80 z-40 backdrop-blur-sm transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
+      {isMobile && isRightSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/80 z-40 backdrop-blur-sm transition-opacity"
+          onClick={() => setIsRightSidebarOpen(false)}
+        />
+      )}
 
       {isMobile ? (
         // Mobile: keep the original drawer + flex layout. No MenuBar.
         <div className="flex flex-1 min-h-0">
+          {/* Left Drawer */}
           <div
-            className={`fixed z-50 h-full w-[85vw] bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col transition-all duration-300 ease-in-out overflow-y-auto ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+            className={`fixed z-50 h-full w-[85vw] bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
           >
-            <Navigator
-              handleTranslateAll={handleTranslateAll}
-              handleTranslateImage={handleTranslateImage}
-              handleTranslateOnly={handleTranslateOnly}
-              handleCancelOcr={handleCancelOcr}
-              retryImage={retryImage}
-              totalCost={totalCost}
-              displayedTotalTokens={displayedTotalTokens}
-              onPagePicked={() => setIsSidebarOpen(false)}
-            />
-            <ControlsPanel {...sidebarProps} />
+            {/* Left Drawer Tabs */}
+            <div className="flex border-b border-slate-800 bg-slate-950/40 p-2 shrink-0">
+              <button
+                onClick={() => setMobileLeftTab('pages')}
+                className={`flex-1 py-2 text-center text-xs font-semibold rounded-lg transition-all ${
+                  mobileLeftTab === 'pages'
+                    ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Páginas
+              </button>
+              <button
+                onClick={() => setMobileLeftTab('controls')}
+                className={`flex-1 py-2 text-center text-xs font-semibold rounded-lg transition-all ${
+                  mobileLeftTab === 'controls'
+                    ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Controles
+              </button>
+            </div>
+
+            {/* Left Drawer Tab Content */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {mobileLeftTab === 'pages' ? (
+                <Navigator
+                  handleTranslateAll={handleTranslateAll}
+                  handleTranslateImage={handleTranslateImage}
+                  handleTranslateOnly={handleTranslateOnly}
+                  handleCancelOcr={handleCancelOcr}
+                  retryImage={retryImage}
+                  totalCost={totalCost}
+                  displayedTotalTokens={displayedTotalTokens}
+                  onPagePicked={() => setIsSidebarOpen(false)}
+                />
+              ) : (
+                <ControlsPanel {...sidebarProps} />
+              )}
+            </div>
           </div>
+
+          {/* Right Drawer */}
+          <div
+            className={`fixed right-0 top-0 z-50 h-full w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col transition-all duration-300 ease-in-out ${isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/20 shrink-0">
+              <h3 className="font-bold text-slate-100 flex items-center gap-2">
+                <WrenchScrewdriverIcon className="w-5 h-5 text-indigo-400" />
+                Painel de Controle
+              </h3>
+              <button
+                onClick={() => setIsRightSidebarOpen(false)}
+                className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                title="Fechar Menu"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Menu Options */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <button
+                onClick={() => {
+                  setIsRightSidebarOpen(false);
+                  modalOpeners.library();
+                }}
+                className="w-full flex items-center justify-between p-3.5 bg-slate-800/40 hover:bg-slate-800 rounded-xl border border-slate-700/60 hover:border-indigo-500/40 transition-all text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
+                    <BookOpenIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-semibold text-slate-200">Minha Biblioteca</span>
+                    <span className="block text-[11px] text-slate-400">Mangás, capítulos e páginas</span>
+                  </div>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsRightSidebarOpen(false);
+                  modalOpeners.settings();
+                }}
+                className="w-full flex items-center justify-between p-3.5 bg-slate-800/40 hover:bg-slate-800 rounded-xl border border-slate-700/60 hover:border-indigo-500/40 transition-all text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-pink-500/10 rounded-lg text-pink-400 group-hover:bg-pink-500/20 transition-colors">
+                    <Cog8ToothIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-semibold text-slate-200">Configurações</span>
+                    <span className="block text-[11px] text-slate-400">Motores de OCR e chaves API</span>
+                  </div>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-slate-500 group-hover:text-pink-400 transition-colors" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsRightSidebarOpen(false);
+                  modalOpeners.onboarding();
+                }}
+                className="w-full flex items-center justify-between p-3.5 bg-slate-800/40 hover:bg-slate-800 rounded-xl border border-slate-700/60 hover:border-indigo-500/40 transition-all text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-500/10 rounded-lg text-amber-400 group-hover:bg-amber-500/20 transition-colors">
+                    <QuestionMarkCircleIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-semibold text-slate-200">Tutorial de Ajuda</span>
+                    <span className="block text-[11px] text-slate-400">Guia de introdução do tradutor</span>
+                  </div>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors" />
+              </button>
+
+              <div className="border-t border-slate-800 pt-4 mt-2 space-y-4">
+                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">Ações Rápidas</h4>
+                
+                <div className="p-3 bg-slate-800/25 rounded-xl border border-slate-800/60 space-y-3.5">
+                  {/* Reading Mode Selector */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-300 font-medium">Modo de Leitura</span>
+                    <div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                      <button
+                        onClick={() => setReadingMode('single')}
+                        className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${
+                          readingMode === 'single'
+                            ? 'bg-slate-800 text-indigo-400 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        Página
+                      </button>
+                      <button
+                        onClick={() => setReadingMode('strip')}
+                        className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-all ${
+                          readingMode === 'strip'
+                            ? 'bg-slate-800 text-indigo-400 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        Strip
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Clean Mode Toggle */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-300 font-medium">Modo Limpo (F11)</span>
+                    <button
+                      onClick={() => setIsCleanMode(p => !p)}
+                      className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-all duration-200 focus:outline-none ${
+                        isCleanMode ? 'bg-indigo-600 justify-end' : 'bg-slate-800 justify-start'
+                      }`}
+                    >
+                      <span className="w-5 h-5 bg-white rounded-full shadow-md transform transition-all duration-200" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-800 pt-4 mt-2">
+                <button
+                  onClick={() => {
+                    setIsRightSidebarOpen(false);
+                    handleClearSession();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 p-3 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-xl border border-red-500/10 hover:border-red-500/20 transition-all font-semibold text-sm"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                  Limpar Sessão Atual
+                </button>
+              </div>
+            </div>
+          </div>
+
           <ViewerArea {...viewerProps} />
         </div>
       ) : (
