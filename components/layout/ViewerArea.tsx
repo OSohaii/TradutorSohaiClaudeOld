@@ -13,6 +13,7 @@ import { ProcessedImage, TextBubble } from '../../types';
 interface ViewerAreaProps {
   /** Open the sidebar drawer (mobile only). */
   onOpenSidebar: () => void;
+  onOpenRightSidebar: () => void;
 
   /** Reading mode (single page vs long strip). */
   readingMode: 'single' | 'strip';
@@ -51,6 +52,7 @@ interface ViewerAreaProps {
  */
 const ViewerArea: React.FC<ViewerAreaProps> = ({
   onOpenSidebar,
+  onOpenRightSidebar,
   readingMode,
   setReadingMode,
   isCleanMode,
@@ -104,6 +106,7 @@ const ViewerArea: React.FC<ViewerAreaProps> = ({
       {!isCleanMode && (
         <TopBar
           onOpenSidebar={onOpenSidebar}
+          onOpenRightSidebar={onOpenRightSidebar}
           readingMode={readingMode}
           onToggleReadingMode={() => setReadingMode(prev => prev === 'single' ? 'strip' : 'single')}
         />
